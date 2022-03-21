@@ -1,8 +1,4 @@
 #! format: off
-struct RangeReserve <: AbstractReservesFormulation end
-struct StepwiseCostReserve <: AbstractReservesFormulation end
-struct RampReserve <: AbstractReservesFormulation end
-struct NonSpinningReserve <: AbstractReservesFormulation end
 ############################### Reserve Variables #########################################
 
 get_variable_multiplier(_, ::Type{<:PSY.Reserve}, ::AbstractReservesFormulation) = NaN
@@ -171,20 +167,12 @@ function add_constraints!(
     return
 end
 
-function cost_function!(
+function objective_function!(
     container::OptimizationContainer,
     service::SR,
     ::ServiceModel{SR, T},
 ) where {SR <: PSY.AbstractReserve, T <: AbstractReservesFormulation}
-    reserve =
-        get_variable(container, ActivePowerReserveVariable(), SR, PSY.get_name(service))
-    for r in reserve
-        JuMP.add_to_expression!(
-            container.cost_function.invariant_terms,
-            r,
-            DEFAULT_RESERVE_COST,
-        )
-    end
+    add_proportional_cost!(container, ActivePowerReserveVariable(), service, T())
     return
 end
 
@@ -384,46 +372,12 @@ function add_constraints!(
     return
 end
 
-function AddCostSpec(
-    ::Type{T},
-    ::Type{StepwiseCostReserve},
-    container::OptimizationContainer,
-) where {T <: PSY.Reserve}
-    return AddCostSpec(;
-        variable_type=ServiceRequirementVariable,
-        component_type=T,
-        has_status_variable=false,
-        has_status_parameter=false,
-        variable_cost=PSY.get_variable,
-        start_up_cost=nothing,
-        shut_down_cost=nothing,
-        fixed_cost=nothing,
-        sos_status=SOSStatusVariable.NO_VARIABLE,
-    )
-end
-
-function add_to_cost!(
-    container::OptimizationContainer,
-    spec::AddCostSpec,
-    service::SR,
-) where {SR <: PSY.Reserve}
-    time_steps = get_time_steps(container)
-    variable_cost_forecast = get_time_series(container, service, "variable_cost")
-    variable_cost_forecast = map(PSY.VariableCost, variable_cost_forecast)
-    for t in time_steps
-        variable_cost!(container, spec, service, variable_cost_forecast[t], t)
-    end
-    return
-end
-
-function cost_function!(
+function objective_function!(
     container::OptimizationContainer,
     service::SR,
-    model::ServiceModel{SR, StepwiseCostReserve},
-) where {SR <: PSY.ReserveDemandCurve}
-    spec = AddCostSpec(SR, get_formulation(model), container)
-    @debug SR, spec
-    add_to_cost!(container, spec, service)
+    ::ServiceModel{PSY.ReserveDemandCurve, SR},
+) where {SR <: StepwiseCostReserve}
+    add_variable_cost!(container, ActivePowerReserveVariable(), service, SR)
     return
 end
 
@@ -445,8 +399,7 @@ function modify_device_model!(
     service_model::ServiceModel{<:PSY.Reserve, <:AbstractReservesFormulation},
     contributing_devices::Vector{<:PSY.Component},
 )
-    device_types = unique(typeof.(contributing_devices))
-    for dt in device_types
+    for dt in unique(typeof.(contributing_devices))
         for device_model in values(devices_template)
             # add message here when it exists
             get_component_type(device_model) != dt && continue
