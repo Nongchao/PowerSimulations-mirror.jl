@@ -393,6 +393,7 @@ import JSON
 import CSV
 import SHA
 import HDF5
+import PrettyTables
 
 # PowerModels exports
 export ACPPowerModel
@@ -495,8 +496,8 @@ include("feedforward/feedforwards.jl")
 include("feedforward/feedforward_arguments.jl")
 include("feedforward/feedforward_constraints.jl")
 
-include("simulation/model_output_cache.jl")
 include("simulation/optimization_output_cache.jl")
+include("simulation/optimization_output_caches.jl")
 include("simulation/simulation_models.jl")
 include("simulation/simulation_state.jl")
 include("simulation/initial_condition_update_simulation.jl")

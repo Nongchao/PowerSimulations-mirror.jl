@@ -294,32 +294,32 @@ function _get_model_store_requirements!(
     for (key, array) in get_duals(container)
         !should_write_resulting_value(key) && continue
         reqs.duals[key] = _calc_dimensions(array, key, num_rows, horizon)
-        add_rule!(rules, model_name, key, true, CachePriority.LOW)
+        add_rule!(rules, model_name, key, true)
     end
 
     for (key, param_container) in get_parameters(container)
         !should_write_resulting_value(key) && continue
         array = get_parameter_array(param_container)
         reqs.parameters[key] = _calc_dimensions(array, key, num_rows, horizon)
-        add_rule!(rules, model_name, key, false, CachePriority.LOW)
+        add_rule!(rules, model_name, key, false)
     end
 
     for (key, array) in get_variables(container)
         !should_write_resulting_value(key) && continue
         reqs.variables[key] = _calc_dimensions(array, key, num_rows, horizon)
-        add_rule!(rules, model_name, key, true, CachePriority.HIGH)
+        add_rule!(rules, model_name, key, true)
     end
 
     for (key, array) in get_aux_variables(container)
         !should_write_resulting_value(key) && continue
         reqs.aux_variables[key] = _calc_dimensions(array, key, num_rows, horizon)
-        add_rule!(rules, model_name, key, true, CachePriority.HIGH)
+        add_rule!(rules, model_name, key, true)
     end
 
     for (key, array) in get_expressions(container)
         !should_write_resulting_value(key) && continue
         reqs.expressions[key] = _calc_dimensions(array, key, num_rows, horizon)
-        add_rule!(rules, model_name, key, false, CachePriority.LOW)
+        add_rule!(rules, model_name, key, false)
     end
 
     return reqs
@@ -380,7 +380,7 @@ function _initialize_problem_storage!(
     dm_model_req = Dict{Symbol, SimulationModelStoreRequirements}()
     rules = CacheFlushRules(
         max_size=cache_size_mib * MiB,
-        min_flush_size=min_cache_flush_size_mib,
+        min_flush_size=trunc(min_cache_flush_size_mib * MiB),
     )
     for model in get_decision_models(models)
         model_name = get_name(model)
@@ -611,7 +611,6 @@ function _update_system_state!(sim::Simulation, model_name::Symbol)
 
     for key in get_dataset_keys(decision_state)
         state_data = get_dataset(decision_state, key)
-        end_of_step_timestamp = get_end_of_step_timestamp(state_data)
         last_update = get_update_timestamp(decision_state, key)
 
         if last_update > simulation_time
@@ -623,9 +622,6 @@ function _update_system_state!(sim::Simulation, model_name::Symbol)
 
         resolution = get_data_resolution(state_data)
         update_timestamp = max(next_stage_initial_time - resolution, simulation_time)
-        if end_of_step_timestamp < update_timestamp
-            @error("Can't update the state with a data beyond the step")
-        end
         if update_timestamp < get_update_timestamp(system_state, key)
             error("The update overwrites more recent data with past data")
         elseif update_timestamp > get_update_timestamp(system_state, key)
@@ -725,7 +721,7 @@ end
 
 function _execute!(
     sim::Simulation;
-    cache_size_mib=1024,
+    cache_size_mib=DEFAULT_SIMULATION_STORE_CACHE_SIZE_MiB,
     min_cache_flush_size_mib=MIN_CACHE_FLUSH_SIZE_MiB,
     exports=nothing,
     enable_progress_bar=progress_meter_enabled(),
@@ -773,6 +769,17 @@ function _execute!(
                 model_name,
                 "start",
             )
+
+            ProgressMeter.update!(
+                prog_bar,
+                (step - 1) * length(execution_order) + ix;
+                showvalues=[
+                    (:Step, step),
+                    (:model, model_name),
+                    (:("Simulation Timestamp"), get_current_time(sim)),
+                ],
+            )
+
             TimerOutputs.@timeit RUN_SIMULATION_TIMER "Execute $(model_name)" begin
                 if !is_built(model)
                     error("$(model_name) status is not BuildStatus.BUILT")
@@ -799,7 +806,6 @@ function _execute!(
                     end
                 end
 
-                global_problem_execution_count = (step - 1) * length(execution_order) + ix
                 sim.internal.run_count[step][model_number] += 1
                 sim.internal.date_ref[model_number] += get_interval(sequence, model_name)
 
@@ -816,16 +822,6 @@ function _execute!(
                     step,
                     model_name,
                     "done",
-                )
-
-                ProgressMeter.update!(
-                    prog_bar,
-                    global_problem_execution_count;
-                    showvalues=[
-                        (:Step, step),
-                        (:model, model_name),
-                        (:("Simulation Timestamp"), get_current_time(sim)),
-                    ],
                 )
             end #execution problem timer
         end # execution order for loop
@@ -870,9 +866,9 @@ function execute!(sim::Simulation; kwargs...)
         error("Simulation status is invalid, you need to rebuild the simulation")
     end
     try
-        open_store(store_type, get_store_dir(sim), "w") do store
-            set_simulation_store!(sim, store)
-            Logging.with_logger(logger) do
+        Logging.with_logger(logger) do
+            open_store(store_type, get_store_dir(sim), "w") do store
+                set_simulation_store!(sim, store)
                 try
                     TimerOutputs.reset_timer!(RUN_SIMULATION_TIMER)
                     TimerOutputs.@timeit RUN_SIMULATION_TIMER "Execute Simulation" begin

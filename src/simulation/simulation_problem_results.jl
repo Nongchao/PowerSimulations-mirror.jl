@@ -401,7 +401,7 @@ function read_realized_aux_variable(
         values(
             read_realized_aux_variables(
                 res,
-                [_deserialize_key(aux_variableKey, res, aux_variable)];
+                [_deserialize_key(AuxVarKey, res, aux_variable)];
                 kwargs...,
             ),
         ),
@@ -526,12 +526,18 @@ Refer to [`read_realized_variable`](@ref) for help and examples.
 """
 function read_realized_dual(res::SimulationProblemResults, dual::AbstractString; kwargs...)
     return first(
-        values(read_realized_duals(res, [_deserialize_key(dualKey, res, dual)]; kwargs...)),
+        values(
+            read_realized_duals(
+                res,
+                [_deserialize_key(ConstraintKey, res, dual)];
+                kwargs...,
+            ),
+        ),
     )
 end
 
 function read_realized_dual(res::SimulationProblemResults, dual...; kwargs...)
-    return first(values(read_realized_duals(res, [dualKey(dual...)]; kwargs...)))
+    return first(values(read_realized_duals(res, [ConstraintKey(dual...)]; kwargs...)))
 end
 
 """

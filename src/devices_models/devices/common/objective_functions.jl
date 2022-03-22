@@ -17,12 +17,7 @@ function add_variable_cost!(
     service::T,
     ::V,
 ) where {T <: PSY.ReserveDemandCurve, U <: VariableType, V <: StepwiseCostReserve}
-    time_steps = get_time_steps(container)
-    variable_cost_forecast = get_time_series(container, service, "variable_cost")
-    variable_cost_forecast = map(PSY.VariableCost, variable_cost_forecast)
-    for t in time_steps
-        variable_cost!(container, spec, service, variable_cost_forecast[t], t)
-    end
+    _add_variable_cost_to_objective!(container, U(), service, V())
     return
 end
 
@@ -110,7 +105,7 @@ function add_proportional_cost!(
     service::T,
     ::V,
 ) where {
-    T <: PSY.Reserve,
+    T <: Union{PSY.Reserve, PSY.ReserveNonSpinning},
     U <: ActivePowerReserveVariable,
     V <: AbstractReservesFormulation,
 }
@@ -121,7 +116,22 @@ function add_proportional_cost!(
             DEFAULT_RESERVE_COST * reserve_variable[index...],
         )
     end
-    _add_proportional_term!
+    return
+end
+
+function add_proportional_cost!(
+    container::OptimizationContainer,
+    ::U,
+    areas::IS.FlattenIteratorWrapper{T},
+    ::PIDSmoothACE,
+) where {T <: PSY.Area, U <: LiftVariable}
+    lift_variable = get_variable(container, U(), T)
+    for index in Iterators.product(axes(lift_variable)...)
+        add_to_objective_invariant_expression!(
+            container,
+            SERVICES_SLACK_COST * lift_variable[index...],
+        )
+    end
     return
 end
 
@@ -195,6 +205,47 @@ function _add_variable_cost_to_objective!(
     return
 end
 
+function _add_variable_cost_to_objective!(
+    container::OptimizationContainer,
+    ::T,
+    component::PSY.Reserve,
+    ::U,
+) where {T <: VariableType, U <: StepwiseCostReserve}
+    component_name = PSY.get_name(component)
+    @debug "PWL Variable Cost" _group = LOG_GROUP_COST_FUNCTIONS component_name
+    # If array is full of tuples with zeros return 0.0
+    time_steps = get_time_steps(container)
+    initial_time = get_initial_time(container)
+    variable_cost_forecast = get_time_series(container, component, "variable_cost")
+    variable_cost_forecast_values = TimeSeries.values(variable_cost_forecast)
+    variable_cost_forecast_values = map(PSY.VariableCost, variable_cost_forecast_values)
+    parameter_container = _get_cost_function_parameter_container(
+        container,
+        CostFunctionParameter(),
+        component,
+        T(),
+        U(),
+        eltype(variable_cost_forecast_values),
+    )
+    pwl_cost_expressions =
+        _add_pwl_term!(container, component, variable_cost_forecast_values, T(), U())
+    jump_model = get_jump_model(container)
+    for t in time_steps
+        set_parameter!(
+            parameter_container,
+            jump_model,
+            PSY.get_cost(variable_cost_forecast_values[t]),
+            # Using 1.0 here since we want to reuse the existing code that adds the mulitpler
+            #  of base power times the time delta.
+            1.0,
+            component_name,
+            t,
+        )
+        add_to_objective_variant_expression!(container, pwl_cost_expressions[t])
+    end
+    return
+end
+
 function add_start_up_cost!(
     container::OptimizationContainer,
     ::U,
@@ -260,7 +311,7 @@ function _get_cost_function_parameter_container(
     S <: ObjectiveFunctionParameter,
     T <: PSY.Component,
     U <: VariableType,
-    V <: AbstractDeviceFormulation,
+    V <: Union{AbstractDeviceFormulation, AbstractServiceFormulation},
 }
     if has_container_key(container, S, T)
         return get_parameter(container, S(), T)
@@ -300,16 +351,14 @@ function _add_service_bid_cost!(
         len=length(time_steps),
     )
     forecast_data_values = PSY.get_cost.(TimeSeries.values(forecast_data)) .* base_power
-    # Not implemented yet
-    #for t in time_steps
-    #    proportional_objective!(
-    #        container,
-    #        spec.addtional_linear_terms[PSY.get_name(service)],
-    #        component,
-    #        forecast_data_values[t],
-    #        t,
-    #    )
-    #end
+    reserve_variable = get_variable(container, U(), T, PSY.get_name(service))
+    component_name = PSY.get_name(component)
+    for t in time_steps
+        add_to_objective_invariant_expression!(
+            container,
+            forecast_data_values[t] * reserve_variable[component_name, t],
+        )
+    end
 end
 
 function _add_service_bid_cost!(::OptimizationContainer, ::PSY.Component, ::PSY.Service) end
@@ -320,7 +369,9 @@ function _add_service_bid_cost!(
     service::PSY.ReserveDemandCurve{T},
 ) where {T <: PSY.ReserveDirection}
     error(
-        "Current version doesn't supports cost bid for ReserveDemandCurve services, please change the forecast data for $(PSY.get_name(service))",
+        "The Current version doesn't supports cost bid for ReserveDemandCurve services, \\
+        please change the forecast data for $(PSY.get_name(service)) \\
+        and open a feature request",
     )
     return
 end
@@ -516,6 +567,14 @@ function _get_sos_value(
     return sos_val
 end
 
+function _get_sos_value(
+    container::OptimizationContainer,
+    ::Type{V},
+    component::T,
+) where {T <: PSY.Component, V <: AbstractServiceFormulation}
+    return SOSStatusVariable.NO_VARIABLE
+end
+
 function _add_pwl_term!(
     container::OptimizationContainer,
     component::T,
@@ -575,6 +634,39 @@ function _add_pwl_term!(
         # First element of the return is the average cost at P_min.
         # Shouldn't be passed for convexity check
         is_convex = _slope_convexity_check(slopes[2:end])
+        break_points = map(x -> last(x), data) ./ base_power
+        _add_pwl_variables!(container, T, name, t, data)
+        _add_pwl_constraint!(container, component, U(), break_points, sos_val, t)
+        if !is_convex
+            _add_pwl_sos_constraint!(container, component, U(), break_points, sos_val, t)
+        end
+        pwl_cost = _get_pwl_cost_expression(container, component, t, data, multiplier * dt)
+        pwl_cost_expressions[t] = pwl_cost
+    end
+    return pwl_cost_expressions
+end
+
+function _add_pwl_term!(
+    container::OptimizationContainer,
+    component::T,
+    cost_data::Vector{PSY.VariableCost{Vector{Tuple{Float64, Float64}}}},
+    ::U,
+    ::V,
+) where {T <: PSY.Component, U <: VariableType, V <: AbstractServiceFormulation}
+    multiplier = objective_function_multiplier(U(), V())
+    resolution = get_resolution(container)
+    dt = Dates.value(Dates.Second(resolution)) / SECONDS_IN_HOUR
+    base_power = get_base_power(container)
+    # Re-scale breakpoints by Basepower
+    name = PSY.get_name(component)
+    time_steps = get_time_steps(container)
+    pwl_cost_expressions = Vector{JuMP.AffExpr}(undef, time_steps[end])
+    sos_val = _get_sos_value(container, V, component)
+    for t in time_steps
+        data = PSY.get_cost(cost_data[t])
+        slopes = PSY.get_slopes(data)
+        # Shouldn't be passed for convexity check
+        is_convex = false
         break_points = map(x -> last(x), data) ./ base_power
         _add_pwl_variables!(container, T, name, t, data)
         _add_pwl_constraint!(container, component, U(), break_points, sos_val, t)

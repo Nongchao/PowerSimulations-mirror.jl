@@ -1,100 +1,119 @@
 """
-Cache for all model results
+Cache for a single parameter/variable/dual.
+Stores arrays chronologically by simulation timestamp.
 """
-mutable struct OptimizationResultCache
-    data::Dict{OptimizationResultCacheKey, OptimzationResultCache}
-    max_size::Int
-    min_flush_size::Int
+mutable struct OptimizationOutputCache
+    key::OptimizationResultCacheKey
+    "Contains both clean and dirty entries. Any key in data that is earlier than the first
+    dirty timestamp must be clean."
+    data::OrderedDict{Dates.DateTime, Array}
+    "Oldest entry is first"
+    dirty_timestamps::Deque{Dates.DateTime}
+    stats::CacheStats
+    size_per_entry::Int
+    flush_rule::CacheFlushRule
 end
 
-function OptimizationResultCache()
-    return OptimizationResultCache(
-        Dict{OptimizationResultCacheKey, OptimzationResultCache}(),
+function OptimizationOutputCache(key, flush_rule)
+    return OptimizationOutputCache(
+        key,
+        OrderedDict{Dates.DateTime, Array}(),
+        Deque{Dates.DateTime}(),
+        CacheStats(),
         0,
-        0,
+        flush_rule,
     )
 end
 
-# PERF: incremental improvement if we manually keep track of the current size.
-# Could be prone to bugs if we miss a change.
-# The number of containers is not expected to be more than 100.
+Base.length(x::OptimizationOutputCache) = length(x.data)
+get_cache_hit_percentage(x::OptimizationOutputCache) = get_cache_hit_percentage(x.stats)
+get_size(x::OptimizationOutputCache) = length(x) * x.size_per_entry
+has_clean(x::OptimizationOutputCache) =
+    !isempty(x.data) && !is_dirty(x, first(keys(x.data)))
+has_dirty(x::OptimizationOutputCache) = !isempty(x.dirty_timestamps)
+should_keep_in_cache(x::OptimizationOutputCache) = x.flush_rule.keep_in_cache
 
-#decrement_size!(cache::OptimizationResultCache, size) = cache.size -= size
-#increment_size!(cache::OptimizationResultCache, size) = cache.size += size
+function get_dirty_size(cache::OptimizationOutputCache)
+    return length(cache.dirty_timestamps) * cache.size_per_entry
+end
 
-get_max_size!(cache::OptimizationResultCache) = cache.max_size
-get_min_flush_size(cache::OptimizationResultCache) = cache.min_flush_size
-get_size(cache::OptimizationResultCache) =
-    reduce(+, (get_size(x) for x in values(cache.data)))
-is_full(cache::OptimizationResultCache, cur_size) = cur_size >= cache.max_size
-set_max_size!(cache::OptimizationResultCache, x) = cache.max_size = x
-set_min_flush_size!(cache::OptimizationResultCache, x) = cache.min_flush_size = x
+function is_dirty(cache::OptimizationOutputCache, timestamp)
+    isempty(cache.dirty_timestamps) && return false
+    return timestamp >= first(cache.dirty_timestamps)
+end
 
-function add_output_cache!(cache::OptimizationResultCache, model_name, key, flush_rule)
-    cache_key = OptimizationResultCacheKey(model_name, key)
-    cache.data[cache_key] = OptimzationResultCache(cache_key, flush_rule)
-    # @debug "Added cache container for" key flush_rule
+function Base.empty!(cache::OptimizationOutputCache)
+    @assert isempty(cache.dirty_timestamps) "dirty cache was still present $(cache.key) $(cache.dirty_timestamps)"
+    empty!(cache.data)
+    cache.size_per_entry = 0
     return
 end
 
 """
-Return true if the cache has data that has not been flushed to storage.
+Add result to the cache.
 """
-function has_dirty(cache::OptimizationResultCache)
-    for output_cache in values(cache.data)
-        if has_dirty(output_cache)
-            return true
+function add_result!(cache::OptimizationOutputCache, timestamp, array, system_cache_is_full)
+    if cache.size_per_entry == 0
+        cache.size_per_entry = length(array) * sizeof(first(array))
+    end
+
+    @debug "add_result!" cache.key timestamp get_size(cache)
+    if haskey(cache.data, timestamp)
+        throw(IS.InvalidValue("$timestamp is already stored in $(cache.key)"))
+    end
+
+    # Note that we buffer all writes in cache until we reach the flush size.
+    # The entries using "should_keep_in_cache" can grow quite large for read caching.
+    if system_cache_is_full && should_keep_in_cache(cache)
+        if has_clean(cache)
+            popfirst!(cache.data)
+            @debug "replaced cache entry" LOG_GROUP_SIMULATION_STORE cache.key length(
+                cache.data,
+            )
         end
     end
 
-    return false
+    _add_result!(cache, timestamp, array)
+    return cache.size_per_entry
 end
 
-get_output_cache(cache::OptimizationResultCache, key::OptimizationResultCacheKey) =
-    cache.data[key]
-
-function get_output_cache(
-    cache::OptimizationResultCache,
-    model_name,
-    key::OptimizationContainerKey,
-)
-    cache_key = OptimizationResultCacheKey(model_name, key)
-    return get_output_cache(cache, cache_key)
+function _add_result!(cache::OptimizationOutputCache, timestamp, data)
+    cache.data[timestamp] = data
+    push!(cache.dirty_timestamps, timestamp)
+    return
 end
 
-"""
-Return true if the data for `timestamp` is stored in cache.
-"""
-function is_cached(cache::OptimizationResultCache, model_name, key, index)
-    cache_key = OptimizationResultCacheKey(model_name, key)
-    return is_cached(cache, cache_key, index)
-end
-
-is_cached(cache::OptimizationResultCache, key, timestamp::Dates.DateTime) =
-    has_timestamp(cache.data[key], timestamp::Dates.DateTime)
-
-is_cached(cache::OptimizationResultCache, key, ::Int) = false
-
-"""
-Log the cache hit percentages for all caches.
-"""
-function log_cache_hit_percentages(cache::OptimizationResultCache)
-    for key in keys(cache.data)
-        output_cache = cache.data[key]
-        cache_hit_pecentage = get_cache_hit_percentage(output_cache)
-        @debug "Cache stats" key cache_hit_pecentage
+function discard_results!(cache::OptimizationOutputCache, timestamps)
+    for timestamp in timestamps
+        pop!(cache.data, timestamp)
     end
+
+    @debug "Removed $(first(timestamps)) - $(last(timestamps)) from cache" cache.key
     return
 end
 
 """
-Read the result from cache. Callers must first call [`is_cached`](@ref) to check if the
-timestamp is present.
+Return all dirty data from the cache. Mark the timestamps as clean.
 """
-function read_result(cache::OptimizationResultCache, model_name, key, timestamp)
-    cache_key = OptimizationResultCacheKey(model_name, key)
-    return read_result(cache, cache_key, timestamp)
+function get_dirty_data_to_flush!(cache::OptimizationOutputCache)
+    timestamps = [x for x in cache.dirty_timestamps]
+    empty!(cache.dirty_timestamps)
+    # Uncomment for performance testing of CacheFlush
+    #TimerOutputs.@timeit RUN_SIMULATION_TIMER "Concatenate arrays for flush" begin
+    arrays = (cache.data[x] for x in timestamps)
+    arrays = cat(arrays..., dims=ndims(first(arrays)) + 1)
+    #end
+
+    return timestamps, arrays
 end
 
-read_result(cache::OptimizationResultCache, key, timestamp) =
-    cache.data[key].data[timestamp]
+function has_timestamp(cache::OptimizationOutputCache, timestamp)
+    present = haskey(cache.data, timestamp)
+    if present
+        cache.stats.hits += 1
+    else
+        cache.stats.misses += 1
+    end
+
+    return present
+end

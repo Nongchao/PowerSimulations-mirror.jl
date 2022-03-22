@@ -1110,20 +1110,34 @@ function iterate_parameter_containers(container::OptimizationContainer)
     end
 end
 
+# Slow implementation not to be used in hot loops
 function read_parameters(container::OptimizationContainer)
-    # TODO: Still not obvious implementation since it needs to get the multipliers from
-    # the system
     params_dict = Dict{ParameterKey, DataFrames.DataFrame}()
     parameters = get_parameters(container)
     (parameters === nothing || isempty(parameters)) && return params_dict
     for (k, v) in parameters
         param_array = axis_array_to_dataframe(get_parameter_array(v), k)
         multiplier_array = axis_array_to_dataframe(get_multiplier_array(v), k)
-        params_dict[k] = param_array .* multiplier_array
+        params_dict[k] = _calculate_parameter_values(k, param_array, multiplier_array)
     end
     return params_dict
 end
 
+function _calculate_parameter_values(
+    key::ParameterKey{<:ParameterType, <:PSY.Component},
+    param_array,
+    multiplier_array,
+)
+    return param_array .* multiplier_array
+end
+
+function _calculate_parameter_values(
+    key::ParameterKey{<:ObjectiveFunctionParameter, <:PSY.Component},
+    param_array,
+    multiplier_array,
+)
+    return param_array
+end
 ##################################### Expression Container #################################
 function _add_expression_container!(
     container::OptimizationContainer,
