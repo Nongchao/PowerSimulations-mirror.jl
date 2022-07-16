@@ -160,6 +160,7 @@ mutable struct SimulationSequence
     horizons::OrderedDict{Symbol, Int}
     intervals::OrderedDict{Symbol, Dates.Millisecond}
     feedforwards::Dict{Symbol, Vector{<:AbstractAffectFeedforward}}
+    events::Dict{EventKey, Any}
     ini_cond_chronology::InitialConditionChronology
     execution_order::Vector{Int}
     executions_by_model::OrderedDict{Symbol, Int}
@@ -169,6 +170,7 @@ mutable struct SimulationSequence
     function SimulationSequence(;
         models::SimulationModels,
         feedforwards=Dict{String, Vector{<:AbstractAffectFeedforward}}(),
+        events = Dict{EventKey, Any}(),
         ini_cond_chronology=InterProblemChronology(),
     )
         # Allow strings or symbols as keys; convert to symbols.
@@ -193,6 +195,7 @@ mutable struct SimulationSequence
             horizons,
             intervals,
             _attach_feedforwards(models, feedforwards),
+            events,
             ini_cond_chronology,
             execution_order,
             executions_by_model,
