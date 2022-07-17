@@ -1,7 +1,7 @@
 """
 Struct to simulation a device trip
 """
-struct UnplanedOutage <: EventType
+struct UnplannedOutage <: EventType
     device::PSY.Device
     timestamp::Dates.DateTime
 end

@@ -319,6 +319,9 @@ export StartTypeConstraint
 export StartupInitialConditionConstraint
 export StartupTimeLimitTemperatureConstraint
 
+# Events
+export UnplannedOutage
+
 # Parameters
 # Time Series Parameters
 export ActivePowerTimeSeriesParameter
