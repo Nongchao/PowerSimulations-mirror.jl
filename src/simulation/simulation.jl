@@ -431,6 +431,37 @@ function _initialize_problem_storage!(
     return simulation_store_params
 end
 
+function _add_events!(sim::Simulation)
+    simulation_models = get_models(sim)
+    sequence = get_sequence(sim)
+    for (k, v) in sequence.events
+        for dm in get_decision_models(simulation_models)
+            container = get_optimization_container(dm)
+            time_steps = get_time_steps(container)
+            jump_model = get_jump_model(container)
+            constraint = add_constraints_container!(container, OutageConstraint(), v.device_type, [v.name], time_steps)
+            param_array = DenseAxisArray{EventParameter}(undef, [v.name])
+            multiplier_array = fill!(DenseAxisArray{Float64}(undef, [v.name]), NaN)
+            container.parameters[ParameterKey(EventParameter, v.device_type)] = ParameterContainer(param_array, multiplier_array)
+            variable = get_variable(container, ActivePowerVariable(), v.device_type)
+            for t in time_steps
+                constraint[v.name, t] = JuMP.@constraint(jump_model, variable[v.name, t] <= param_array[v.name])
+            end
+        end
+        em = get_emulation_model(simulation_models)
+        if em !== nothing
+            container = get_optimization_container(em)
+            time_steps = get_time_steps(container)
+            jump_model = get_jump_model(container)
+            constraint = add_constraints_container!(container, OutageConstraint(), v.device_type, [v.name], time_steps)
+            param_array = DenseAxisArray{EventParameter}(undef, [v.name], time_steps)
+            multiplier_array = fill!(DenseAxisArray{Float64}(undef, [v.name], time_steps), NaN)
+            container.parameters[ParameterKey(EventParameter, v.device_type)] = ParameterContainer(param_array, multiplier_array)
+        end
+    end
+    return
+end
+
 function _build!(sim::Simulation, serialize::Bool)
     set_simulation_build_status!(sim, BuildStatus.IN_PROGRESS)
     problem_initial_times = _get_simulation_initial_times!(sim)
@@ -469,6 +500,9 @@ function _build!(sim::Simulation, serialize::Bool)
         _build_decision_models!(sim)
         _build_emulation_model!(sim)
     end
+
+    error()
+    _add_events!(sim)
 
     TimerOutputs.@timeit BUILD_PROBLEMS_TIMER "Initialize Simulation State" begin
         _initialize_simulation_state!(sim)

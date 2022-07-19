@@ -11,7 +11,7 @@ function EventKey(
     if isabstracttype(U)
         error("Type $U can't be abstract")
     end
-    return EventKey{T, U}
+    return EventKey{T, U}("")
 end
 
 get_entry_type(

@@ -26,7 +26,7 @@ get_component_type(::ParameterKey{T, U}) where {T <: ParameterType, U <: PSY.Com
 
 abstract type ParameterAttributes end
 
-struct NoAttributes end
+struct NoAttributes <: ParameterAttributes end
 
 struct TimeSeriesAttributes{T <: PSY.TimeSeriesData} <: ParameterAttributes
     name::String
@@ -44,6 +44,7 @@ end
 get_time_series_type(::TimeSeriesAttributes{T}) where {T <: PSY.TimeSeriesData} = T
 get_time_series_name(attr::TimeSeriesAttributes) = attr.name
 get_time_series_multiplier_id(attr::TimeSeriesAttributes) = attr.multiplier_id[]
+
 function set_time_series_multiplier_id!(attr::TimeSeriesAttributes, val::Int)
     attr.multiplier_id[] = val
     return
@@ -180,6 +181,8 @@ struct EnergyTargetParameter <: VariableValueParameter end
 struct CostFunctionParameter <: ObjectiveFunctionParameter end
 
 abstract type AuxVariableValueParameter <: RightHandSideParameter end
+
+struct EventParameter <: ParameterType end
 
 should_write_resulting_value(::Type{<:ParameterType}) = false
 should_write_resulting_value(::Type{<:RightHandSideParameter}) = true

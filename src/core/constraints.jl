@@ -104,7 +104,7 @@ struct ComponentActivePowerVariableLimitsConstraint <: PowerVariableLimitsConstr
 struct ComponentReactivePowerVariableLimitsConstraint <: PowerVariableLimitsConstraint end
 
 abstract type EventConstraint <: ConstraintType end
-
+struct OutageConstraint <: EventConstraint end
 
 # These apply to the processing of constraint duals
 should_write_resulting_value(::Type{<:ConstraintType}) = true
