@@ -14,6 +14,8 @@ export InitialCondition
 export SimulationModels
 export SimulationSequence
 export SimulationResults
+export SimulationSegments
+export SimulationSegmentResults
 
 # Network Relevant Exports
 export NetworkModel
@@ -199,6 +201,7 @@ export show_recorder_events
 export list_simulation_events
 export show_simulation_events
 export export_realized_results
+export get_num_segments
 
 ## Enums
 export BuildStatus
@@ -408,6 +411,8 @@ export SOCWRConicPowerModel
 export QCRMPowerModel
 export QCLSPowerModel
 
+export process_simulation_segment_cli_args
+
 ################################################################################
 
 # Type Alias From other Packages
@@ -508,6 +513,8 @@ include("simulation/simulation_problem_results.jl")
 include("simulation/realized_meta.jl")
 include("simulation/decision_model_simulation_results.jl")
 include("simulation/emulation_model_simulation_results.jl")
+include("simulation/simulation_segments.jl")
+include("simulation/simulation_segment_results.jl")
 include("simulation/simulation_sequence.jl")
 include("simulation/simulation_internal.jl")
 include("simulation/simulation.jl")

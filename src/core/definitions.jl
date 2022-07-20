@@ -71,6 +71,8 @@ const KNOWN_SIMULATION_PATHS = [
     "recorder",
     "results",
     "simulation_files",
+    "simulation_splits",
+    "join_split_simulation.log",
 ]
 const RESULTS_DIR = "results"
 

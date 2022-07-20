@@ -83,7 +83,6 @@ function SimulationResults(path::AbstractString, execution=nothing; ignore_statu
             decision_problem_results[name] = problem_result
         end
 
-        emulation_params = get_emulation_model_params(sim_params)
         emulation_result = SimulationProblemResults(
             EmulationModel,
             store,
