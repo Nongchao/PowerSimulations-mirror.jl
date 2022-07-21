@@ -1,9 +1,37 @@
+@testset "Test segments and step ranges" begin
+    segments = SimulationSegments(2, 1)
+    @test PSI.get_absolute_step_range(segments, 1) == 1:1
+    @test PSI.get_valid_step_offset(segments, 1) == 1
+    @test PSI.get_valid_step_length(segments, 1) == 1
+    @test PSI.get_absolute_step_range(segments, 2) == 2:2
+    @test PSI.get_valid_step_offset(segments, 2) == 1
+    @test PSI.get_valid_step_length(segments, 2) == 1
+
+    segments = SimulationSegments(365, 7, 1)
+    @test get_num_segments(segments) == 53
+    @test PSI.get_absolute_step_range(segments, 1) == 1:7
+    @test PSI.get_valid_step_offset(segments, 1) == 1
+    @test PSI.get_valid_step_length(segments, 1) == 7
+    @test PSI.get_absolute_step_range(segments, 2) == 7:14
+    @test PSI.get_valid_step_offset(segments, 2) == 2
+    @test PSI.get_valid_step_length(segments, 2) == 7
+    @test PSI.get_absolute_step_range(segments, 52) == 357:364
+    @test PSI.get_valid_step_offset(segments, 52) == 2
+    @test PSI.get_valid_step_length(segments, 52) == 7
+    @test PSI.get_absolute_step_range(segments, 53) == 364:365
+    @test PSI.get_valid_step_offset(segments, 53) == 2
+    @test PSI.get_valid_step_length(segments, 53) == 1
+
+    @test_throws ErrorException PSI.get_absolute_step_range(segments, -1)
+    @test_throws ErrorException PSI.get_absolute_step_range(segments, 54)
+end
+
 function build_simulation(
     output_dir::AbstractString,
     simulation_name::AbstractString,
     segments::SimulationSegments,
-    index::Union{Nothing, Integer}=nothing,
-    use_splits=false,
+    index::Union{Nothing, Integer}=nothing;
+    use_segments=true,
 )
     template_uc = get_template_basic_uc_simulation()
     set_device_model!(template_uc, ThermalStandard, ThermalStandardUnitCommitment)
@@ -59,11 +87,12 @@ function build_simulation(
         sequence=sequence,
         simulation_folder=output_dir,
     )
-    if use_splits
-        status = build!(sim; segments=segments, index=index, serialize=isnothing(index))
-    else
-        status = build!(sim)
-    end
+    status = build!(
+        sim;
+        segments=use_segments ? segments : nothing,
+        index=index,
+        serialize=isnothing(index),
+    )
     if status != PSI.BuildStatus.BUILT
         error("Failed to build simulation: status=$status")
     end
@@ -72,51 +101,64 @@ function build_simulation(
 end
 
 function execute_simulation(sim, args...; kwargs...)
-    status = execute!(sim)
-    if status != PSI.RunStatus.SUCCESSFUL
-        error("Simulation failed to execute: status=$status")
+    return execute!(sim)
+end
+
+@testset "Test simulation segments" begin
+    sim_dir = mktempdir()
+    segments = SimulationSegments(2, 1, 1)
+    regular_sim = build_simulation(sim_dir, "regular_sim", segments, use_segments=false)
+    @test execute_simulation(regular_sim) == PSI.RunStatus.SUCCESSFUL
+
+    name = "segmented_sim"
+    args = [
+        "setup",
+        "--simulation-name=$name",
+        "--num-steps=$(segments.num_steps)",
+        "--num-period-steps=$(segments.period)",
+        "--num-overlap-steps=$(segments.num_overlap_steps)",
+        "--output-dir=$sim_dir",
+    ]
+    process_simulation_segment_cli_args(build_simulation, execute_simulation, args...)
+    for index in 1:get_num_segments(segments)
+        args = [
+            "execute",
+            "--simulation-name=$name",
+            "--index=$index",
+            "--output-dir=$sim_dir",
+        ]
+        process_simulation_segment_cli_args(build_simulation, execute_simulation, args...)
     end
-    return status
-end
+    args = ["join", "--simulation-name=$name", "--output-dir=$sim_dir"]
+    process_simulation_segment_cli_args(build_simulation, execute_simulation, args...)
 
-@testset "Test segments and step ranges" begin
-    segments = SimulationSegments(2, 1)
-    @test PSI.get_absolute_step_range(segments, 1) == 1:1
-    @test PSI.get_valid_step_offset(segments, 1) == 1
-    @test PSI.get_valid_step_length(segments, 1) == 1
-    @test PSI.get_absolute_step_range(segments, 2) == 2:2
-    @test PSI.get_valid_step_offset(segments, 2) == 1
-    @test PSI.get_valid_step_length(segments, 2) == 1
+    regular_results = SimulationResults(joinpath(sim_dir, "regular_sim"))
+    segmented_results = SimulationResults(joinpath(sim_dir, "segmented_sim"))
 
-    segments = SimulationSegments(365, 7, 1)
-    @test get_num_segments(segments) == 53
-    @test PSI.get_absolute_step_range(segments, 1) == 1:7
-    @test PSI.get_valid_step_offset(segments, 1) == 1
-    @test PSI.get_valid_step_length(segments, 1) == 7
-    @test PSI.get_absolute_step_range(segments, 2) == 7:14
-    @test PSI.get_valid_step_offset(segments, 2) == 2
-    @test PSI.get_valid_step_length(segments, 2) == 7
-    @test PSI.get_absolute_step_range(segments, 52) == 357:364
-    @test PSI.get_valid_step_offset(segments, 52) == 2
-    @test PSI.get_valid_step_length(segments, 52) == 7
-    @test PSI.get_absolute_step_range(segments, 53) == 364:365
-    @test PSI.get_valid_step_offset(segments, 53) == 2
-    @test PSI.get_valid_step_length(segments, 53) == 1
+    functions = (
+        read_realized_aux_variables,
+        read_realized_duals,
+        read_realized_expressions,
+        read_realized_parameters,
+        read_realized_variables,
+    )
+    for model_name in ("ED", "UC")
+        regular = get_decision_problem_results(regular_results, model_name)
+        segmented = get_decision_problem_results(segmented_results, model_name)
 
-    @test_throws ErrorException PSI.get_absolute_step_range(segments, -1)
-    @test_throws ErrorException PSI.get_absolute_step_range(segments, 54)
-end
+        for func in functions
+            regular_realized = func(regular)
+            segmented_realized = func(segmented)
+            @test segmented_realized == regular_realized
+        end
+    end
 
-# @testset "Test simulation segments" begin
-#     sim_dir = mktempdir()
-#     sim_non_split = build_simulation(sim_dir, "non_split_sim")    
-#     @test execute_simulation(sim_non_split) == PSI.RunStatus.SUCCESSFUL
-# end
-
-function main()
-    process_simulation_segment_cli_args(build_simulation, execute_simulation, ARGS...)
-end
-
-if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    # TODO: broken
+    # regular = get_emulation_problem_results(regular_results)
+    # segmented = get_emulation_problem_results(segmented_results)
+    # for func in functions
+    #     regular_realized = func(regular)
+    #     segmented_realized = func(segmented)
+    #     @test segmented_realized == regular_realized
+    # end
 end
