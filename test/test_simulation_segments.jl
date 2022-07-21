@@ -136,6 +136,32 @@ end
     segmented_results = SimulationResults(joinpath(sim_dir, "segmented_sim"))
 
     functions = (
+        (list_aux_variable_names, read_aux_variable),
+        (list_dual_names, read_dual),
+        (list_expression_names, read_expression),
+        (list_parameter_names, read_parameter),
+        (list_variable_names, read_variable),
+    )
+    for model_name in ("ED", "UC")
+        regular = get_decision_problem_results(regular_results, model_name)
+        segmented = get_decision_problem_results(segmented_results, model_name)
+        @test get_timestamps(regular) == get_timestamps(segmented)
+        for (list_func, read_func) in functions
+            @test list_func(segmented) == list_func(regular)
+            for timestamp in get_timestamps(regular)
+                for name in list_func(segmented)
+                    segmented_dict = read_func(segmented, name, initial_time=timestamp)
+                    regular_dict = read_func(regular, name, initial_time=timestamp)
+                    @test collect(keys(segmented_dict)) == collect(keys(regular_dict))
+                    for key in keys(segmented_dict)
+                        @test segmented_dict[key] == regular_dict[key]
+                    end
+                end
+            end
+        end
+    end
+
+    functions = (
         read_realized_aux_variables,
         read_realized_duals,
         read_realized_expressions,
@@ -153,7 +179,8 @@ end
         end
     end
 
-    # TODO: broken
+    # TODO: Some columns have mismatches in the first segment.
+    # This may be expected. Disabling until that is confirmed.
     # regular = get_emulation_problem_results(regular_results)
     # segmented = get_emulation_problem_results(segmented_results)
     # for func in functions
