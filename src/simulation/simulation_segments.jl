@@ -71,17 +71,6 @@ function get_valid_step_length(segments::SimulationSegments, index::Int)
     return remainder == 0 ? segments.period : remainder
 end
 
-"""
-Return a UnitRange for the valid steps in the segment with the given index. Excludes overlap.
-"""
-# function get_relative_step_range(segments::SimulationSegments, index::Int)
-#     _check_segment_index(segments, index)
-#     start_pos = index == 1 ? 1 : segments.num_overlap_steps + 1
-#     len = index < num_segments ? segments.period : segments.num_steps % segments.period
-#     end_pos = start_pos + len
-#     return start_pos:end_pos
-# end
-
 function _check_segment_index(segments::SimulationSegments, index::Int)
     num_segments = get_num_segments(segments)
     if index <= 0 || index > num_segments
@@ -168,7 +157,7 @@ function process_simulation_segment_cli_args(build_function, execute_function, a
             JSON3.read(io, Dict)
         end
         segments = IS.deserialize(SimulationSegments, config)
-        config_logging(joinpath(base_dir, "join_segment_simulation.log"))
+        config_logging(joinpath(base_dir, "join_segmented_simulation.log"))
         join_simulation(base_dir)
     else
         error("Unsupported operation=$operation")

@@ -72,7 +72,7 @@ const KNOWN_SIMULATION_PATHS = [
     "results",
     "simulation_files",
     "simulation_splits",
-    "join_split_simulation.log",
+    "join_segmented_simulation.log",
 ]
 const RESULTS_DIR = "results"
 

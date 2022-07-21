@@ -492,14 +492,12 @@ function _build!(
     end
 
     if serialize
-        simulation_models = get_models(sim)
         TimerOutputs.@timeit BUILD_PROBLEMS_TIMER "Serializing Simulation Files" begin
             serialize_simulation(sim)
         end
         for model in get_decision_models(simulation_models)
             serialize_problem(model)
         end
-        em = get_emulation_model(simulation_models)
         if em !== nothing
             serialize_problem(em)
         end
@@ -578,6 +576,7 @@ function build!(
     index=nothing,
 )
     if !isnothing(segments) && !isnothing(index) && serialize
+        # This is build of a segment. No need to serialize again.
         serialize = false
     end
     TimerOutputs.reset_timer!(BUILD_PROBLEMS_TIMER)
