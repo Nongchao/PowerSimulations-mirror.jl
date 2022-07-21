@@ -157,7 +157,7 @@ function process_simulation_segment_cli_args(build_function, execute_function, a
             JSON3.read(io, Dict)
         end
         segments = IS.deserialize(SimulationSegments, config)
-        config_logging(joinpath(base_dir, "join_segmented_simulation.log"))
+        config_logging(joinpath(base_dir, "logs", "join_segmented_simulation.log"))
         join_simulation(base_dir)
     else
         error("Unsupported operation=$operation")
