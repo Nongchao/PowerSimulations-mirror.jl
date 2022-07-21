@@ -189,8 +189,8 @@ Jade will create HTML plots of the resource utilization in `output/stats`. You m
    results as you normally would.
 
 ```
-julia> results = SimulationResults("<output-dir>/<simulation-name>")
+julia> results = SimulationResults("<output-dir>/job-outputs/<simulation-name>")
 ```
 
 Note the log files and results for each segement are located in
-`<output-dir>/<simulation-name>/simulation_segments`
+`<output-dir>/job-outputs/<simulation-name>/simulation_segments`

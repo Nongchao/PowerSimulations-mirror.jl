@@ -117,7 +117,7 @@ function process_simulation_segment_cli_args(build_function, execute_function, a
     if haskey(options, "output-dir")
         output_dir = options["output-dir"]
     elseif haskey(ENV, "JADE_RUNTIME_OUTPUT")
-        output_dir = ENV["JADE_RUNTIME_OUTPUT"]
+        output_dir = joinpath(ENV["JADE_RUNTIME_OUTPUT"], "job-outputs")
     else
         error("output-dir must be specified as a CLI option or environment variable")
     end
