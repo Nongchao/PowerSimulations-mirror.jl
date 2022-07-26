@@ -571,12 +571,8 @@ function construct_device!(
         S,
     )
 
-    add_initial_condition!(
-        container,
-        devices,
-        HydroDispatchReservoirStorage(),
-        InitialEnergyLevel(),
-    )
+    initial_conditions!(container, devices, HydroDispatchReservoirStorage())
+
     # Energy Balance Constraint
     add_constraints!(container, EnergyBalanceConstraint, devices, model, S)
     add_constraints!(container, EnergyTargetConstraint, devices, model, S)
@@ -684,12 +680,8 @@ function construct_device!(
         S,
     )
 
-    add_initial_condition!(
-        container,
-        devices,
-        HydroDispatchReservoirStorage(),
-        InitialEnergyLevel(),
-    )
+    initial_conditions!(container, devices, HydroDispatchReservoirStorage())
+
     # Energy Balance Constraint
     add_constraints!(container, EnergyBalanceConstraint, devices, model, S)
     add_constraints!(container, EnergyTargetConstraint, devices, model, S)
@@ -1211,12 +1203,8 @@ function construct_device!(
         S,
     )
 
-    add_initial_condition!(
-        container,
-        devices,
-        HydroCommitmentReservoirStorage(),
-        InitialEnergyLevel(),
-    )
+    initial_conditions!(container, devices, HydroCommitmentReservoirStorage())
+
     # Energy Balance Constraint
     add_constraints!(container, EnergyBalanceConstraint, devices, model, S)
     add_constraints!(container, EnergyTargetConstraint, devices, model, S)
@@ -1328,12 +1316,7 @@ function construct_device!(
         S,
     )
 
-    add_initial_condition!(
-        container,
-        devices,
-        HydroCommitmentReservoirStorage(),
-        InitialEnergyLevel(),
-    )
+    initial_conditions!(container, devices, HydroCommitmentReservoirStorage())
 
     # Energy Balance Constraint
     add_constraints!(container, EnergyBalanceConstraint, devices, model, S)
@@ -1429,18 +1412,8 @@ function construct_device!(
         S,
     )
 
-    add_initial_condition!(
-        container,
-        devices,
-        HydroDispatchPumpedStorage(),
-        InitialEnergyLevelUp(),
-    )
-    add_initial_condition!(
-        container,
-        devices,
-        HydroDispatchPumpedStorage(),
-        InitialEnergyLevelDown(),
-    )
+    initial_conditions!(container, devices, HydroDispatchPumpedStorage())
+
 
     # Energy Balanace limits
     add_constraints!(container, EnergyCapacityUpConstraint, devices, model, S)

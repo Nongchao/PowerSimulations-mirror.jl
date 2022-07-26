@@ -1242,7 +1242,7 @@ function construct_device!(
 
     add_constraints!(container, CommitmentConstraint, devices, model, S)
     add_constraints!(container, RampConstraint, devices, model, S)
-    add_constraints!(container, DurationConstraint, devices, model, S)
+    # add_constraints!(container, DurationConstraint, devices, model, S)
 
     add_feedforward_constraints!(container, model, devices)
 

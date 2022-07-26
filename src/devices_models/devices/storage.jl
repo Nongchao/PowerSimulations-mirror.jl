@@ -140,7 +140,12 @@ function initial_conditions!(
     devices::IS.FlattenIteratorWrapper{St},
     formulation::AbstractStorageFormulation,
 ) where {St <: PSY.Storage}
-    add_initial_condition!(container, devices, formulation, InitialEnergyLevel())
+    settings = get_settings(container)
+    if haskey(settings.ext, "rebuild_sim") && settings.ext["rebuild_sim"]
+        nothing
+    else
+        add_initial_condition!(container, devices, formulation, InitialEnergyLevel())
+    end
     return
 end
 

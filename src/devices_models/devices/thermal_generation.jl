@@ -113,7 +113,7 @@ function no_load_cost(cost::Union{PSY.ThreePartCost, PSY.TwoPartCost}, S::OnVari
     return no_load_cost(PSY.get_variable(cost), S, T, U)
 end
 no_load_cost(cost::PSY.VariableCost{Vector{NTuple{2, Float64}}}, ::OnVariable, ::PSY.ThermalGen, ::AbstractThermalFormulation) = first(PSY.get_cost(cost))[1]
-no_load_cost(cost::PSY.VariableCost{Float64}, ::OnVariable, ::PSY.ThermalGen, ::AbstractThermalFormulation) = PSY.get_cost(cost) * PSY.get_active_power_limits(d).min * PSY.get_base_power(d)
+no_load_cost(cost::PSY.VariableCost{Float64}, ::OnVariable, d::PSY.ThermalGen, ::AbstractThermalFormulation) = PSY.get_cost(cost) * PSY.get_active_power_limits(d).min * PSY.get_base_power(d)
 function no_load_cost(cost::PSY.VariableCost{Tuple{Float64, Float64}}, ::OnVariable, d::PSY.ThermalGen, ::AbstractThermalFormulation)
     return (PSY.get_cost(cost)[1] * (PSY.get_active_power_limits(d).min)^2 + PSY.get_cost(cost)[2] * PSY.get_active_power_limits(d).min)* PSY.get_base_power(d)
 end
@@ -628,10 +628,15 @@ function initial_conditions!(
     devices::IS.FlattenIteratorWrapper{T},
     formulation::AbstractThermalUnitCommitment,
 ) where {T <: PSY.ThermalGen}
-    add_initial_condition!(container, devices, formulation, DeviceStatus())
-    add_initial_condition!(container, devices, formulation, DevicePower())
-    add_initial_condition!(container, devices, formulation, InitialTimeDurationOn())
-    add_initial_condition!(container, devices, formulation, InitialTimeDurationOff())
+    settings = get_settings(container)
+    if haskey(settings.ext, "rebuild_sim") && settings.ext["rebuild_sim"]
+        nothing
+    else
+        add_initial_condition!(container, devices, formulation, DeviceStatus())
+        add_initial_condition!(container, devices, formulation, DevicePower())
+        add_initial_condition!(container, devices, formulation, InitialTimeDurationOn())
+        add_initial_condition!(container, devices, formulation, InitialTimeDurationOff())
+    end
 
     return
 end
@@ -641,10 +646,15 @@ function initial_conditions!(
     devices::IS.FlattenIteratorWrapper{T},
     formulation::AbstractCompactUnitCommitment,
 ) where {T <: PSY.ThermalGen}
-    add_initial_condition!(container, devices, formulation, DeviceStatus())
-    add_initial_condition!(container, devices, formulation, DeviceAboveMinPower())
-    add_initial_condition!(container, devices, formulation, InitialTimeDurationOn())
-    add_initial_condition!(container, devices, formulation, InitialTimeDurationOff())
+    settings = get_settings(container)
+    if haskey(settings.ext, "rebuild_sim") && settings.ext["rebuild_sim"]
+        nothing
+    else
+        add_initial_condition!(container, devices, formulation, DeviceStatus())
+        add_initial_condition!(container, devices, formulation, DeviceAboveMinPower())
+        add_initial_condition!(container, devices, formulation, InitialTimeDurationOn())
+        add_initial_condition!(container, devices, formulation, InitialTimeDurationOff())
+    end
 
     return
 end
@@ -654,7 +664,12 @@ function initial_conditions!(
     devices::IS.FlattenIteratorWrapper{T},
     formulation::Union{ThermalBasicUnitCommitment, ThermalBasicCompactUnitCommitment},
 ) where {T <: PSY.ThermalGen}
-    add_initial_condition!(container, devices, formulation, DeviceStatus())
+    settings = get_settings(container)
+    if haskey(settings.ext, "rebuild_sim") && settings.ext["rebuild_sim"]
+        nothing
+    else
+        add_initial_condition!(container, devices, formulation, DeviceStatus())
+    end
     return
 end
 
@@ -663,7 +678,12 @@ function initial_conditions!(
     devices::IS.FlattenIteratorWrapper{T},
     formulation::AbstractThermalDispatchFormulation,
 ) where {T <: PSY.ThermalGen}
-    add_initial_condition!(container, devices, formulation, DevicePower())
+    settings = get_settings(container)
+    if haskey(settings.ext, "rebuild_sim") && settings.ext["rebuild_sim"]
+        nothing
+    else
+        add_initial_condition!(container, devices, formulation, DevicePower())
+    end
     return
 end
 
@@ -672,7 +692,12 @@ function initial_conditions!(
     devices::IS.FlattenIteratorWrapper{T},
     formulation::ThermalCompactDispatch,
 ) where {T <: PSY.ThermalGen}
-    add_initial_condition!(container, devices, formulation, DeviceAboveMinPower())
+    settings = get_settings(container)
+    if haskey(settings.ext, "rebuild_sim") && settings.ext["rebuild_sim"]
+        nothing
+    else
+        add_initial_condition!(container, devices, formulation, DeviceAboveMinPower())
+    end
     return
 end
 ############################ Auxiliary Variables Calculation ################################

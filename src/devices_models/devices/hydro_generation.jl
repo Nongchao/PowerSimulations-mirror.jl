@@ -705,6 +705,51 @@ function calculate_aux_variable_value!(
     return
 end
 
+########################## Make initial Conditions for a Model #############################
+function initial_conditions!(
+    container::OptimizationContainer,
+    devices::IS.FlattenIteratorWrapper{D},
+    formulation::S,
+) where {D <: PSY.HydroEnergyReservoir, S <: Union{HydroDispatchReservoirStorage, HydroCommitmentReservoirStorage}}
+    settings = PSI.get_settings(model)
+    if haskey(settings.ext, "rebuild_sim") && settings.ext["rebuild_sim"]
+        nothing
+    else
+        add_initial_condition!(
+            container,
+            devices,
+            S,
+            InitialEnergyLevel(),
+        )
+    end
+    return
+end
+
+function initial_conditions!(
+    container::OptimizationContainer,
+    devices::IS.FlattenIteratorWrapper{D},
+    formulation::HydroDispatchPumpedStorage,
+) where {D <: PSY.HydroPumpedStorage}
+    settings = PSI.get_settings(model)
+    if haskey(settings.ext, "rebuild_sim") && settings.ext["rebuild_sim"]
+        nothing
+    else
+        add_initial_condition!(
+            container,
+            devices,
+            formulation,
+            InitialEnergyLevelUp(),
+        )
+        add_initial_condition!(
+            container,
+            devices,
+            formulation,
+            InitialEnergyLevelDown(),
+        )
+    end
+    return
+end
+
 ##################################### Hydro generation cost ############################
 function objective_function!(
     container::OptimizationContainer,

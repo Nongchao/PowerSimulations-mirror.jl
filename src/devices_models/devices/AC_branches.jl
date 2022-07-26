@@ -201,7 +201,9 @@ function add_constraints!(
     network_model::NetworkModel{S},
 ) where {B <: PSY.ACBranch, S <: StandardPTDFModel}
     ptdf = get_PTDF(network_model)
+    ptdf_branches, ptdf_buses = ptdf.axes
     branches = PSY.get_name.(devices)
+    branches = filter(x -> x in ptdf_branches, branches)
     time_steps = get_time_steps(container)
     branch_flow = add_constraints_container!(
         container,
@@ -213,20 +215,18 @@ function add_constraints!(
     nodal_balance_expressions = get_expression(container, ActivePowerBalance(), S)
     flow_variables = get_variable(container, FlowActivePowerVariable(), B)
     jump_model = get_jump_model(container)
-    for br in devices
-        name = PSY.get_name(br)
-        ptdf_col = ptdf[name, :]
-        flow_variables_ = flow_variables[name, :]
-        for t in time_steps
-            branch_flow[name, t] = JuMP.@constraint(
-                jump_model,
-                sum(
-                    ptdf_col[i] * nodal_balance_expressions.data[i, t] for
-                    i in 1:length(ptdf_col)
-                ) - flow_variables_[t] == 0.0
-            )
-        end
+
+    itr = reshape(collect(Iterators.product(time_steps, branches)), length(branches)*length(time_steps), 1);
+    exprs = Array{PGAE}(undef, length(branches) * time_steps[end]);
+    Threads.@threads for ix in 1:length(itr)
+        t, name = itr[ix]
+        exprs[ix] = ptdf[name, :]' * nodal_balance_expressions[:, t]  - flow_variables[name, t];
     end
+    for ix in 1:length(itr)
+        t, name = itr[ix]
+        @inbounds branch_flow[name, t] = JuMP.@constraint(jump_model, exprs[ix] == 0.0)
+    end
+
 end
 
 """

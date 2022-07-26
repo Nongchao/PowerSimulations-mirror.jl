@@ -760,7 +760,12 @@ function initial_conditions!(
     devices::IS.FlattenIteratorWrapper{D},
     formulation::AbstractHybridFormulation,
 ) where {D <: PSY.HybridSystem}
-    add_initial_condition!(container, devices, formulation, InitialEnergyLevel())
+    settings = PSI.get_settings(model)
+    if haskey(settings.ext, "rebuild_sim") && settings.ext["rebuild_sim"]
+        nothing
+    else
+        add_initial_condition!(container, devices, formulation, InitialEnergyLevel())
+    end
     return
 end
 
