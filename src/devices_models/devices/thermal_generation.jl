@@ -154,7 +154,10 @@ function get_default_time_series_names(
     ::Type{U},
     ::Type{V},
 ) where {U <: PSY.ThermalGen, V <: Union{FixedOutput, AbstractThermalFormulation}}
-    return Dict{Type{<:TimeSeriesParameter}, String}()
+    return Dict{Type{<:TimeSeriesParameter}, String}(
+        ActivePowerTimeSeriesParameter => "max_active_power",
+        CommitmentTimeSeriesParameter => "commitment",
+    )
 end
 
 function get_default_attributes(

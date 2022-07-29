@@ -156,6 +156,8 @@ abstract type TimeSeriesParameter <: RightHandSideParameter end
 
 struct ActivePowerTimeSeriesParameter <: TimeSeriesParameter end
 
+struct CommitmentTimeSeriesParameter <: TimeSeriesParameter end
+
 struct ReactivePowerTimeSeriesParameter <: TimeSeriesParameter end
 
 struct RequirementTimeSeriesParameter <: TimeSeriesParameter end
