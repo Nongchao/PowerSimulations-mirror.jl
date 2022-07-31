@@ -224,13 +224,15 @@ function _show_method(io::IO, template::ProblemTemplate, backend::Symbol; kwargs
                 table[ix, 1] = string(get_component_type(model))
                 table[ix, 2] = string(get_formulation(model))
                 table[ix, 3] = string(model.use_slacks)
-                table[ix, 4] = string(model.attributes["aggregated_service_model"])
+                table[ix, 4] =
+                    string(get(model.attributes, "aggregated_service_model", "false"))
             else
                 table[ix, 1] = key[1]
                 table[ix, 2] = string(get_component_type(model))
                 table[ix, 3] = string(get_formulation(model))
                 table[ix, 4] = string(model.use_slacks)
-                table[ix, 5] = string(model.attributes["aggregated_service_model"])
+                table[ix, 5] =
+                    string(get(model.attributes, "aggregated_service_model", "false"))
             end
         end
 
@@ -480,7 +482,12 @@ function Base.show(io::IO, ::MIME"text/html", input::ProblemResultsTypes)
     _show_method(io, input, :html; standalone=false, tf=PrettyTables.tf_html_simple)
 end
 
-function _show_method(io::IO, results::ProblemResultsTypes, backend::Symbol; kwargs...)
+function _show_method(
+    io::IO,
+    results::T,
+    backend::Symbol;
+    kwargs...,
+) where {T <: ProblemResultsTypes}
     timestamps = get_timestamps(results)
 
     if backend == :html
@@ -500,6 +507,13 @@ function _show_method(io::IO, results::ProblemResultsTypes, backend::Symbol; kwa
         "Expressions" => list_expression_names(results),
         "Parameters" => list_parameter_names(results),
     )
+
+    if hasfield(T, :problem)
+        name = results.problem
+    else
+        name = "PowerSimulations"
+    end
+
     for (k, val) in values
         if !isempty(val)
             println(io)
@@ -508,7 +522,7 @@ function _show_method(io::IO, results::ProblemResultsTypes, backend::Symbol; kwa
                 val;
                 noheader=true,
                 backend=backend,
-                title="$(results.problem) Problem $k Results",
+                title="$name Problem $k Results",
                 alignment=:l,
                 kwargs...,
             )

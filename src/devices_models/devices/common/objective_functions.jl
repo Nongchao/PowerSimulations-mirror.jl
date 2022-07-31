@@ -62,6 +62,25 @@ function add_proportional_cost!(
     ::U,
     devices::IS.FlattenIteratorWrapper{T},
     ::V,
+) where {T <: PSY.ThermalGen, U <: OnVariable, V <: AbstractCompactUnitCommitment}
+    multiplier = objective_function_multiplier(U(), V())
+    for d in devices
+        op_cost_data = PSY.get_operation_cost(d)
+        cost_term = proportional_cost(op_cost_data, U(), d, V())
+        iszero(cost_term) && continue
+        for t in get_time_steps(container)
+            exp = _add_proportional_term!(container, U(), d, cost_term * multiplier, t)
+            add_to_expression!(container, ProductionCostExpression, exp, d, t)
+        end
+    end
+    return
+end
+
+function add_proportional_cost!(
+    container::OptimizationContainer,
+    ::U,
+    devices::IS.FlattenIteratorWrapper{T},
+    ::V,
 ) where {
     T <: PSY.Storage,
     U <: Union{ActivePowerInVariable, ActivePowerOutVariable},
@@ -109,11 +128,12 @@ function add_proportional_cost!(
     U <: ActivePowerReserveVariable,
     V <: AbstractReservesFormulation,
 }
+    base_p = get_base_power(container)
     reserve_variable = get_variable(container, U(), T, PSY.get_name(service))
     for index in Iterators.product(axes(reserve_variable)...)
         add_to_objective_invariant_expression!(
             container,
-            DEFAULT_RESERVE_COST * reserve_variable[index...],
+            DEFAULT_RESERVE_COST / base_p * reserve_variable[index...],
         )
     end
     return
@@ -737,8 +757,12 @@ function _add_pwl_term!(
     ::U,
     ::V,
 ) where {T <: PSY.ThermalGen, U <: VariableType, V <: ThermalDispatchNoMin}
+    multiplier = objective_function_multiplier(U(), V())
+    resolution = get_resolution(container)
+    dt = Dates.value(Dates.Second(resolution)) / SECONDS_IN_HOUR
     component_name = PSY.get_name(component)
     @debug "PWL cost function detected for device $(component_name) using $V"
+    base_power = get_base_power(container)
     slopes = PSY.get_slopes(data)
     if any(slopes .< 0) || !_slope_convexity_check(slopes[2:end])
         throw(
@@ -767,7 +791,7 @@ function _add_pwl_term!(
     break_points = map(x -> last(x), data) ./ base_power
     sos_val = _get_sos_value(container, V, component)
     for t in time_steps
-        _add_pwl_variables!(container, T, name, t, data)
+        _add_pwl_variables!(container, T, component_name, t, data)
         _add_pwl_constraint!(container, component, U(), break_points, sos_val, t)
         pwl_cost = _get_pwl_cost_expression(container, component, t, data, multiplier * dt)
         pwl_cost_expressions[t] = pwl_cost
