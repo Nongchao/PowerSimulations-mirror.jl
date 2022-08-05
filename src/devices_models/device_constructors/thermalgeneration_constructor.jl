@@ -458,7 +458,10 @@ function construct_device!(
 
     add_variables!(container, ActivePowerVariable, devices, ThermalStandardDispatch())
     add_variables!(container, ReactivePowerVariable, devices, ThermalStandardDispatch())
-
+    if get_attribute(model, "commitment_timeseries")
+        add_parameters!(container, UpperBoundTimeSeriesParameter(), devices, model)
+        add_parameters!(container, LowerBoundTimeSeriesParameter(), devices, model)
+    end
     initial_conditions!(container, devices, ThermalStandardDispatch())
 
     add_to_expression!(
@@ -513,23 +516,41 @@ function construct_device!(
 ) where {T <: PSY.ThermalGen, S <: PM.AbstractPowerModel}
     devices = get_available_components(T, sys)
 
-    add_constraints!(
-        container,
-        ActivePowerVariableLimitsConstraint,
-        ActivePowerRangeExpressionLB,
-        devices,
-        model,
-        S,
-    )
-    add_constraints!(
-        container,
-        ActivePowerVariableLimitsConstraint,
-        ActivePowerRangeExpressionUB,
-        devices,
-        model,
-        S,
-    )
-
+    if get_attribute(model, "commitment_timeseries")
+        add_constraints!(
+            container,
+            ActivePowerVariableTimeSeriesLimitsConstraint,
+            ActivePowerRangeExpressionLB,
+            devices,
+            model,
+            S,
+        )
+        add_constraints!(
+            container,
+            ActivePowerVariableTimeSeriesLimitsConstraint,
+            ActivePowerRangeExpressionUB,
+            devices,
+            model,
+            S,
+        )
+    else
+        add_constraints!(
+            container,
+            ActivePowerVariableLimitsConstraint,
+            ActivePowerRangeExpressionLB,
+            devices,
+            model,
+            S,
+        )
+        add_constraints!(
+            container,
+            ActivePowerVariableLimitsConstraint,
+            ActivePowerRangeExpressionUB,
+            devices,
+            model,
+            S,
+        )
+    end
     add_constraints!(
         container,
         ReactivePowerVariableLimitsConstraint,
@@ -560,7 +581,10 @@ function construct_device!(
     devices = get_available_components(T, sys)
 
     add_variables!(container, ActivePowerVariable, devices, ThermalStandardDispatch())
-
+    if get_attribute(model, "commitment_timeseries")
+        add_parameters!(container, UpperBoundTimeSeriesParameter(), devices, model)
+        add_parameters!(container, LowerBoundTimeSeriesParameter(), devices, model)
+    end
     initial_conditions!(container, devices, ThermalStandardDispatch())
 
     add_to_expression!(
@@ -607,22 +631,41 @@ function construct_device!(
 ) where {T <: PSY.ThermalGen, S <: PM.AbstractActivePowerModel}
     devices = get_available_components(T, sys)
 
-    add_constraints!(
-        container,
-        ActivePowerVariableLimitsConstraint,
-        ActivePowerRangeExpressionLB,
-        devices,
-        model,
-        S,
-    )
-    add_constraints!(
-        container,
-        ActivePowerVariableLimitsConstraint,
-        ActivePowerRangeExpressionUB,
-        devices,
-        model,
-        S,
-    )
+    if get_attribute(model, "commitment_timeseries")
+        add_constraints!(
+            container,
+            ActivePowerVariableTimeSeriesLimitsConstraint,
+            ActivePowerRangeExpressionLB,
+            devices,
+            model,
+            S,
+        )
+        add_constraints!(
+            container,
+            ActivePowerVariableTimeSeriesLimitsConstraint,
+            ActivePowerRangeExpressionUB,
+            devices,
+            model,
+            S,
+        )
+    else
+        add_constraints!(
+            container,
+            ActivePowerVariableLimitsConstraint,
+            ActivePowerRangeExpressionLB,
+            devices,
+            model,
+            S,
+        )
+        add_constraints!(
+            container,
+            ActivePowerVariableLimitsConstraint,
+            ActivePowerRangeExpressionUB,
+            devices,
+            model,
+            S,
+        )
+    end
 
     add_constraints!(container, RampConstraint, devices, model, S)
 
@@ -648,7 +691,10 @@ function construct_device!(
 
     add_variables!(container, ActivePowerVariable, devices, D())
     add_variables!(container, ReactivePowerVariable, devices, D())
-
+    if get_attribute(model, "commitment_timeseries")
+        add_parameters!(container, UpperBoundTimeSeriesParameter(), devices, model)
+        add_parameters!(container, LowerBoundTimeSeriesParameter(), devices, model)
+    end
     add_to_expression!(
         container,
         ActivePowerBalance,
@@ -702,22 +748,41 @@ function construct_device!(
 }
     devices = get_available_components(T, sys)
 
-    add_constraints!(
-        container,
-        ActivePowerVariableLimitsConstraint,
-        ActivePowerRangeExpressionLB,
-        devices,
-        model,
-        S,
-    )
-    add_constraints!(
-        container,
-        ActivePowerVariableLimitsConstraint,
-        ActivePowerRangeExpressionUB,
-        devices,
-        model,
-        S,
-    )
+    if get_attribute(model, "commitment_timeseries")
+        add_constraints!(
+            container,
+            ActivePowerVariableTimeSeriesLimitsConstraint,
+            ActivePowerRangeExpressionLB,
+            devices,
+            model,
+            S,
+        )
+        add_constraints!(
+            container,
+            ActivePowerVariableTimeSeriesLimitsConstraint,
+            ActivePowerRangeExpressionUB,
+            devices,
+            model,
+            S,
+        )
+    else
+        add_constraints!(
+            container,
+            ActivePowerVariableLimitsConstraint,
+            ActivePowerRangeExpressionLB,
+            devices,
+            model,
+            S,
+        )
+        add_constraints!(
+            container,
+            ActivePowerVariableLimitsConstraint,
+            ActivePowerRangeExpressionUB,
+            devices,
+            model,
+            S,
+        )
+    end
 
     add_constraints!(
         container,
@@ -749,7 +814,10 @@ function construct_device!(
     devices = get_available_components(T, sys)
 
     add_variables!(container, ActivePowerVariable, devices, D())
-
+    if get_attribute(model, "commitment_timeseries")
+        add_parameters!(container, UpperBoundTimeSeriesParameter(), devices, model)
+        add_parameters!(container, LowerBoundTimeSeriesParameter(), devices, model)
+    end
     add_to_expression!(
         container,
         ActivePowerBalance,
@@ -795,22 +863,41 @@ function construct_device!(
 }
     devices = get_available_components(T, sys)
 
-    add_constraints!(
-        container,
-        ActivePowerVariableLimitsConstraint,
-        ActivePowerRangeExpressionLB,
-        devices,
-        model,
-        S,
-    )
-    add_constraints!(
-        container,
-        ActivePowerVariableLimitsConstraint,
-        ActivePowerRangeExpressionUB,
-        devices,
-        model,
-        S,
-    )
+    if get_attribute(model, "commitment_timeseries")
+        add_constraints!(
+            container,
+            ActivePowerVariableTimeSeriesLimitsConstraint,
+            ActivePowerRangeExpressionLB,
+            devices,
+            model,
+            S,
+        )
+        add_constraints!(
+            container,
+            ActivePowerVariableTimeSeriesLimitsConstraint,
+            ActivePowerRangeExpressionUB,
+            devices,
+            model,
+            S,
+        )
+    else
+        add_constraints!(
+            container,
+            ActivePowerVariableLimitsConstraint,
+            ActivePowerRangeExpressionLB,
+            devices,
+            model,
+            S,
+        )
+        add_constraints!(
+            container,
+            ActivePowerVariableLimitsConstraint,
+            ActivePowerRangeExpressionUB,
+            devices,
+            model,
+            S,
+        )
+    end
 
     add_feedforward_constraints!(container, model, devices)
 
@@ -1461,7 +1548,10 @@ function construct_device!(
     add_variables!(container, PowerOutput, devices, ThermalCompactDispatch())
 
     add_parameters!(container, OnStatusParameter(), devices, model)
-
+    if get_attribute(model, "commitment_timeseries")
+        add_parameters!(container, UpperBoundTimeSeriesParameter(), devices, model)
+        add_parameters!(container, LowerBoundTimeSeriesParameter(), devices, model)
+    end
     add_feedforward_arguments!(container, model, devices)
 
     initial_conditions!(container, devices, ThermalCompactDispatch())
@@ -1494,7 +1584,7 @@ function construct_device!(
         model,
         S,
     )
-    add_to_expression!(container, ActivePowerBalance, OnStatusParameter, devices, model, S)
+    # add_to_expression!(container, ActivePowerBalance, OnStatusParameter, devices, model, S)
     add_to_expression!(
         container,
         ActivePowerRangeExpressionLB,
@@ -1523,22 +1613,41 @@ function construct_device!(
 ) where {T <: PSY.ThermalGen, S <: PM.AbstractPowerModel}
     devices = get_available_components(T, sys)
 
-    add_constraints!(
-        container,
-        ActivePowerVariableLimitsConstraint,
-        ActivePowerRangeExpressionLB,
-        devices,
-        model,
-        S,
-    )
-    add_constraints!(
-        container,
-        ActivePowerVariableLimitsConstraint,
-        ActivePowerRangeExpressionUB,
-        devices,
-        model,
-        S,
-    )
+    if get_attribute(model, "commitment_timeseries")
+        add_constraints!(
+            container,
+            ActivePowerVariableTimeSeriesLimitsConstraint,
+            ActivePowerRangeExpressionLB,
+            devices,
+            model,
+            S,
+        )
+        add_constraints!(
+            container,
+            ActivePowerVariableTimeSeriesLimitsConstraint,
+            ActivePowerRangeExpressionUB,
+            devices,
+            model,
+            S,
+        )
+    else
+        add_constraints!(
+            container,
+            ActivePowerVariableLimitsConstraint,
+            ActivePowerRangeExpressionLB,
+            devices,
+            model,
+            S,
+        )
+        add_constraints!(
+            container,
+            ActivePowerVariableLimitsConstraint,
+            ActivePowerRangeExpressionUB,
+            devices,
+            model,
+            S,
+        )
+    end
 
     add_constraints!(
         container,
@@ -1571,7 +1680,10 @@ function construct_device!(
     add_variables!(container, PowerOutput, devices, ThermalCompactDispatch())
 
     add_parameters!(container, OnStatusParameter(), devices, model)
-
+    if get_attribute(model, "commitment_timeseries")
+        add_parameters!(container, UpperBoundTimeSeriesParameter(), devices, model)
+        add_parameters!(container, LowerBoundTimeSeriesParameter(), devices, model)
+    end
     add_feedforward_arguments!(container, model, devices)
 
     add_to_expression!(
@@ -1617,22 +1729,41 @@ function construct_device!(
 ) where {T <: PSY.ThermalGen, S <: PM.AbstractActivePowerModel}
     devices = get_available_components(T, sys)
 
-    add_constraints!(
-        container,
-        ActivePowerVariableLimitsConstraint,
-        ActivePowerRangeExpressionLB,
-        devices,
-        model,
-        S,
-    )
-    add_constraints!(
-        container,
-        ActivePowerVariableLimitsConstraint,
-        ActivePowerRangeExpressionUB,
-        devices,
-        model,
-        S,
-    )
+    if get_attribute(model, "commitment_timeseries")
+        add_constraints!(
+            container,
+            ActivePowerVariableTimeSeriesLimitsConstraint,
+            ActivePowerRangeExpressionLB,
+            devices,
+            model,
+            S,
+        )
+        add_constraints!(
+            container,
+            ActivePowerVariableTimeSeriesLimitsConstraint,
+            ActivePowerRangeExpressionUB,
+            devices,
+            model,
+            S,
+        )
+    else
+        add_constraints!(
+            container,
+            ActivePowerVariableLimitsConstraint,
+            ActivePowerRangeExpressionLB,
+            devices,
+            model,
+            S,
+        )
+        add_constraints!(
+            container,
+            ActivePowerVariableLimitsConstraint,
+            ActivePowerRangeExpressionUB,
+            devices,
+            model,
+            S,
+        )
+    end
 
     add_constraints!(container, RampConstraint, devices, model, S)
 

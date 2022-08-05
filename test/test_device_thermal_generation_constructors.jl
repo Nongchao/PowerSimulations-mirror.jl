@@ -243,6 +243,28 @@ end
     psi_checkobjfun_test(model, GQEVF)
 end
 
+@testset "ThermalStandard  with ThermalBasicDispatch With AC - PF" begin
+    device_model = DeviceModel(ThermalStandard, ThermalBasicDispatch; attributes=Dict{String, Any}("commitment_timeseries" => true))
+    c_sys5 = PSB.build_system(PSITestSystems, "c_sys5")
+    for th in get_components(ThermalGen, c_sys5)
+        time_stamps = collect(DateTime("2024-01-01T00:00:00"):Hour(1):DateTime("2024-01-02T23:00:00"))
+        new_ts = SingleTimeSeries("commitment", TimeSeries.TimeArray(time_stamps, zeros(length(time_stamps))))
+        add_time_series!(c_sys5, th, new_ts)
+    end
+    transform_single_time_series!(c_sys5, 24, Hour(24))
+    model = DecisionModel(MockOperationProblem, DCPPowerModel, c_sys5)
+    mock_construct_device!(model, device_model)
+    moi_tests(model, false, 240, 0, 240, 240, 0, false)
+    psi_checkobjfun_test(model, GAEVF)
+
+    c_sys14 = PSB.build_system(PSITestSystems, "c_sys14")
+    model = DecisionModel(MockOperationProblem, DCPPowerModel, c_sys14;)
+    mock_construct_device!(model, device_model)
+    moi_tests(model, false, 240, 0, 240, 240, 0, false)
+    psi_checkobjfun_test(model, GQEVF)
+end
+
+
 # This Formulation is currently broken
 @testset "ThermalMultiStart with ThermalBasicDispatch With DC - PF" begin
     device_model = DeviceModel(ThermalMultiStart, ThermalBasicDispatch)

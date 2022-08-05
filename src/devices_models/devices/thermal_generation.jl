@@ -79,6 +79,11 @@ proportional_cost(cost::PSY.MarketBidCost, ::OnVariable, ::PSY.ThermalGen, ::Abs
 proportional_cost(cost::PSY.MarketBidCost, ::OnVariable, ::PSY.ThermalGen, ::AbstractCompactUnitCommitment)=PSY.get_no_load(cost)
 proportional_cost(cost::PSY.MultiStartCost, ::OnVariable, ::PSY.ThermalMultiStart, ::ThermalMultiStartUnitCommitment)=PSY.get_fixed(cost) + PSY.get_no_load(cost)
 
+
+get_multiplier_value(::UpperBoundTimeSeriesParameter, d::PSY.ThermalGen, ::AbstractThermalFormulation) = PSY.get_active_power_limits(d).max
+get_multiplier_value(::LowerBoundTimeSeriesParameter, d::PSY.ThermalGen, ::AbstractThermalFormulation) = PSY.get_active_power_limits(d).min
+
+
 has_multistart_variables(::PSY.ThermalGen, ::AbstractThermalFormulation)=false
 has_multistart_variables(::PSY.ThermalMultiStart, ::ThermalMultiStartUnitCommitment)=true
 
@@ -156,7 +161,8 @@ function get_default_time_series_names(
 ) where {U <: PSY.ThermalGen, V <: Union{FixedOutput, AbstractThermalFormulation}}
     return Dict{Type{<:TimeSeriesParameter}, String}(
         ActivePowerTimeSeriesParameter => "max_active_power",
-        CommitmentTimeSeriesParameter => "commitment",
+        UpperBoundTimeSeriesParameter => "commitment",
+        LowerBoundTimeSeriesParameter => "commitment",
     )
 end
 
@@ -165,6 +171,13 @@ function get_default_attributes(
     ::Type{V},
 ) where {U <: PSY.ThermalGen, V <: Union{FixedOutput, AbstractThermalFormulation}}
     return Dict{String, Any}()
+end
+
+function get_default_attributes(
+    ::Type{U},
+    ::Type{V},
+) where {U <: PSY.ThermalGen, V <: AbstractThermalDispatchFormulation}
+    return Dict{String, Any}("commitment_timeseries" => false)
 end
 
 ######## THERMAL GENERATION CONSTRAINTS ############
@@ -248,7 +261,83 @@ function add_constraints!(
     X::Type{<:PM.AbstractPowerModel},
 ) where {V <: PSY.ThermalGen, W <: AbstractThermalDispatchFormulation}
     if !has_semicontinuous_feedforward(model, U)
+        @show "wrong"
         add_range_constraints!(container, T, U, devices, model, X)
+    end
+    return
+end
+
+function add_constraints!(
+    container::OptimizationContainer,
+    T::Type{ActivePowerVariableTimeSeriesLimitsConstraint},
+    U::Type{<:RangeConstraintLBExpressions},
+    devices::IS.FlattenIteratorWrapper{V},
+    model::DeviceModel{V, W},
+    X::Type{<:PM.AbstractPowerModel},
+) where {V <: PSY.ThermalGen, W <: AbstractThermalDispatchFormulation}
+    if get_attribute(model, "commitment_timeseries")
+        add_parameterized_lower_bound_range_constraints(
+            container,
+            T,
+            U,
+            LowerBoundTimeSeriesParameter,
+            devices,
+            model,
+            X,
+        )
+    end
+    return
+end
+
+function add_constraints!(
+    container::OptimizationContainer,
+    T::Type{ActivePowerVariableTimeSeriesLimitsConstraint},
+    U::Type{<:RangeConstraintUBExpressions},
+    devices::IS.FlattenIteratorWrapper{V},
+    model::DeviceModel{V, W},
+    X::Type{<:PM.AbstractPowerModel},
+) where {V <: PSY.ThermalGen, W <: AbstractThermalDispatchFormulation}
+    if get_attribute(model, "commitment_timeseries")
+        add_parameterized_upper_bound_range_constraints(
+            container,
+            T,
+            U,
+            UpperBoundTimeSeriesParameter,
+            devices,
+            model,
+            X,
+        )
+    end
+    return
+end
+
+function add_constraints!(
+    container::OptimizationContainer,
+    T::Type{ActivePowerVariableTimeSeriesLimitsConstraint},
+    U::Type{VariableType},
+    devices::IS.FlattenIteratorWrapper{V},
+    model::DeviceModel{V, W},
+    X::Type{<:PM.AbstractPowerModel},
+) where {V <: PSY.ThermalGen, W <: AbstractThermalDispatchFormulation}
+    if get_attribute(model, "commitment_timeseries")
+        add_parameterized_lower_bound_range_constraints(
+            container,
+            T,
+            U,
+            LowerBoundTimeSeriesParameter,
+            devices,
+            model,
+            X,
+        )
+        add_parameterized_upper_bound_range_constraints(
+            container,
+            T,
+            U,
+            UpperBoundTimeSeriesParameter,
+            devices,
+            model,
+            X,
+        )
     end
     return
 end
@@ -1147,6 +1236,7 @@ function add_constraints!(
     end
     return
 end
+
 
 ########################### time duration constraints ######################################
 """
