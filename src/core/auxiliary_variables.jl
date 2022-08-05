@@ -32,3 +32,4 @@ should_write_resulting_value(::Type{<:AuxVariableType}) = true
 
 convert_result_to_natural_units(::Type{<:AuxVariableType}) = false
 convert_result_to_natural_units(::Type{PowerOutput}) = true
+convert_result_to_natural_units(::Type{EnergyOutput}) = true

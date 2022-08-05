@@ -25,13 +25,13 @@ get_variable_lower_bound(
     ::FlowActivePowerVariable,
     d::PSY.DCBranch,
     ::AbstractDCLineFormulation,
-) = max(PSY.get_active_power_limits_from(d).min, PSY.get_active_power_limits_to(d).min)
+) = min(PSY.get_active_power_limits_from(d).min, PSY.get_active_power_limits_to(d).min)
 
 get_variable_upper_bound(
     ::FlowActivePowerVariable,
     d::PSY.DCBranch,
     ::AbstractDCLineFormulation,
-) = min(PSY.get_active_power_limits_from(d).max, PSY.get_active_power_limits_to(d).max)
+) = max(PSY.get_active_power_limits_from(d).max, PSY.get_active_power_limits_to(d).max)
 
 #! format: on
 
@@ -113,19 +113,25 @@ function add_constraints!(
     var = get_variable(container, FlowActivePowerVariable(), B)
     time_steps = get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
-    constraint = add_constraints_container!(container, cons_type(), B, names, time_steps)
+    constraint_ub = add_constraints_container!(container, cons_type(), B, names, time_steps; meta = "ub")
+    constraint_lb = add_constraints_container!(container, cons_type(), B, names, time_steps; meta = "lb")
     for t in time_steps, d in devices
-        min_rate = max(
+        min_rate = min(
             PSY.get_active_power_limits_from(d).min,
             PSY.get_active_power_limits_to(d).min,
         )
-        max_rate = min(
+        max_rate = max(
             PSY.get_active_power_limits_from(d).max,
             PSY.get_active_power_limits_to(d).max,
         )
-        constraint[PSY.get_name(d), t] = JuMP.@constraint(
+        # TODO: implement PSDF + DCDF flow constraint
+        constraint_lb[PSY.get_name(d), t] = JuMP.@constraint(
             container.JuMPmodel,
-            min_rate <= var[PSY.get_name(d), t] <= max_rate
+            min_rate <= var[PSY.get_name(d), t]
+        )
+        constraint_ub[PSY.get_name(d), t] = JuMP.@constraint(
+            container.JuMPmodel,
+            var[PSY.get_name(d), t] <= max_rate
         )
     end
     return
@@ -152,19 +158,24 @@ function add_constraints!(
     names = [PSY.get_name(d) for d in devices]
 
     var = get_variable(container, FlowActivePowerVariable(), B)
-    constraint = add_constraints_container!(container, cons_type(), B, names, time_steps)
+    constraint_ub = add_constraints_container!(container, cons_type(), B, names, time_steps; meta = "ub")
+    constraint_lb = add_constraints_container!(container, cons_type(), B, names, time_steps; meta = "lb")
     for t in time_steps, d in devices
-        min_rate = max(
+        min_rate = min(
             PSY.get_active_power_limits_from(d).min,
             PSY.get_active_power_limits_to(d).min,
         )
-        max_rate = min(
+        max_rate = max(
             PSY.get_active_power_limits_from(d).max,
             PSY.get_active_power_limits_to(d).max,
         )
-        constraint[PSY.get_name(d), t] = JuMP.@constraint(
+        constraint_lb[PSY.get_name(d), t] = JuMP.@constraint(
             container.JuMPmodel,
-            min_rate <= var[PSY.get_name(d), t] <= max_rate
+            var[PSY.get_name(d), t] >= min_rate
+        )
+        constraint_ub[PSY.get_name(d), t] = JuMP.@constraint(
+            container.JuMPmodel,
+            var[PSY.get_name(d), t] <= max_rate
         )
     end
     return
