@@ -156,9 +156,15 @@ abstract type TimeSeriesParameter <: RightHandSideParameter end
 
 struct ActivePowerTimeSeriesParameter <: TimeSeriesParameter end
 
+struct ReactivePowerTimeSeriesParameter <: TimeSeriesParameter end
+
+struct RequirementTimeSeriesParameter <: TimeSeriesParameter end
+
 struct UpperBoundTimeSeriesParameter <: TimeSeriesParameter end
 
 struct LowerBoundTimeSeriesParameter <: TimeSeriesParameter end
+
+struct EnergyTargetTimeSeriesParameter <: TimeSeriesParameter end
 
 struct EnergyBudgetTimeSeriesParameter <: TimeSeriesParameter end
 

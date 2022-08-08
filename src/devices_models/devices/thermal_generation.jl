@@ -82,6 +82,7 @@ proportional_cost(cost::PSY.MultiStartCost, ::OnVariable, ::PSY.ThermalMultiStar
 
 get_multiplier_value(::UpperBoundTimeSeriesParameter, d::PSY.ThermalGen, ::AbstractThermalFormulation) = PSY.get_active_power_limits(d).max
 get_multiplier_value(::LowerBoundTimeSeriesParameter, d::PSY.ThermalGen, ::AbstractThermalFormulation) = PSY.get_active_power_limits(d).min
+get_multiplier_value(::ActivePowerTimeSeriesParameter, d::PSY.ThermalGen, ::FixedOutput) = PSY.get_active_power_limits(d).max
 
 
 has_multistart_variables(::PSY.ThermalGen, ::AbstractThermalFormulation)=false
@@ -261,7 +262,6 @@ function add_constraints!(
     X::Type{<:PM.AbstractPowerModel},
 ) where {V <: PSY.ThermalGen, W <: AbstractThermalDispatchFormulation}
     if !has_semicontinuous_feedforward(model, U)
-        @show "wrong"
         add_range_constraints!(container, T, U, devices, model, X)
     end
     return
