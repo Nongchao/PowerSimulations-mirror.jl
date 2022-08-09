@@ -159,6 +159,11 @@ function construct_device!(
 ) where {B <: PSY.ACBranch, S <: StandardPTDFModel}
     devices = get_available_components(B, sys)
     add_variables!(container, S, devices, StaticBranchBounds())
+    if get_use_slacks(model)
+        add_variables!(container, NetworkFlowSlackUp, devices, StaticBranchBounds())
+        add_variables!(container, NetworkFlowSlackDown, devices, StaticBranchBounds())
+        objective_function!(container, devices, model, S)
+    end
     return
 end
 

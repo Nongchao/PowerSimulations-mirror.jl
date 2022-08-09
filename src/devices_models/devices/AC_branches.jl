@@ -41,6 +41,21 @@ get_variable_binary(
     ::AbstractBranchFormulation,
 ) = false
 
+get_variable_upper_bound(::NetworkFlowSlackUp, d::PSY.ACBranch, ::AbstractBranchFormulation) = PSY.get_rate(d)*2
+get_variable_lower_bound(::NetworkFlowSlackUp, d::PSY.ACBranch, ::AbstractBranchFormulation) = 0.0
+get_variable_upper_bound(::NetworkFlowSlackDown, d::PSY.ACBranch, ::AbstractBranchFormulation) = PSY.get_rate(d)*2
+get_variable_lower_bound(::NetworkFlowSlackDown, d::PSY.ACBranch, ::AbstractBranchFormulation) = 0.0
+get_variable_binary(
+    ::NetworkFlowSlackUp,
+    ::Type{<:PSY.ACBranch},
+    ::AbstractBranchFormulation,
+) = false
+get_variable_binary(
+    ::NetworkFlowSlackDown,
+    ::Type{<:PSY.ACBranch},
+    ::AbstractBranchFormulation,
+) = false
+
 get_variable_multiplier(_, ::Type{<:PSY.ACBranch}, _) = NaN
 
 function get_default_time_series_names(
@@ -218,9 +233,18 @@ function add_constraints!(
 
     itr = reshape(collect(Iterators.product(time_steps, branches)), length(branches)*length(time_steps), 1);
     exprs = Array{PGAE}(undef, length(branches) * time_steps[end]);
-    Threads.@threads for ix in 1:length(itr)
-        t, name = itr[ix]
-        exprs[ix] = ptdf[name, :]' * nodal_balance_expressions[:, t]  - flow_variables[name, t];
+    if get_use_slacks(model)
+        slack_up_variables = get_variable(container, NetworkFlowSlackUp(), B)
+        slack_dn_variables = get_variable(container, NetworkFlowSlackDown(), B)
+        Threads.@threads for ix in 1:length(itr)
+            t, name = itr[ix]
+            exprs[ix] = ptdf[name, :]' * nodal_balance_expressions[:, t]  - flow_variables[name, t] - slack_up_variables[name, t] + slack_dn_variables[name, t];
+        end
+    else
+        Threads.@threads for ix in 1:length(itr)
+            t, name = itr[ix]
+            exprs[ix] = ptdf[name, :]' * nodal_balance_expressions[:, t]  - flow_variables[name, t];
+        end
     end
     for ix in 1:length(itr)
         t, name = itr[ix]

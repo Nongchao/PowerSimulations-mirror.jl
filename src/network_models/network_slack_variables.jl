@@ -141,3 +141,23 @@ function objective_function!(
     end
     return
 end
+
+function objective_function!(
+    container::OptimizationContainer,
+    devices::IS.FlattenIteratorWrapper{T},
+    ::DeviceModel{T, U},
+    ::Type{StandardPTDFModel},
+) where {T <: PSY.Branch, U <: AbstractBranchFormulation}
+    variable_p_up = get_variable(container, NetworkFlowSlackUp(), T)
+    variable_p_dn = get_variable(container, NetworkFlowSlackDown(), T)
+    branch_names = get_name.(devices)
+    @assert_op branch_names == axes(variable_p_up)[1]
+    @assert_op collect(get_time_steps(container)) == axes(variable_p_dn)[2]
+    for name in branch_names, t in get_time_steps(container)
+        add_to_objective_invariant_expression!(
+            container,
+            (variable_p_up[name, t] + variable_p_dn[name, t])* BALANCE_SLACK_COST,
+        )
+    end
+    return
+end

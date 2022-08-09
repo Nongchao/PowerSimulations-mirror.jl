@@ -103,6 +103,10 @@ struct SystemBalanceSlackUp <: VariableType end
 
 struct SystemBalanceSlackDown <: VariableType end
 
+struct NetworkFlowSlackUp <: VariableType end
+
+struct NetworkFlowSlackDown  <: VariableType end
+
 struct ReserveRequirementSlack <: VariableType end
 
 struct VoltageMagnitude <: VariableType end
@@ -168,6 +172,8 @@ convert_result_to_natural_units(::Type{AdditionalDeltaActivePowerDownVariable}) 
 convert_result_to_natural_units(::Type{SmoothACE}) = true
 convert_result_to_natural_units(::Type{SystemBalanceSlackUp}) = true
 convert_result_to_natural_units(::Type{SystemBalanceSlackDown}) = true
+convert_result_to_natural_units(::Type{NetworkFlowSlackUp}) = true
+convert_result_to_natural_units(::Type{NetworkFlowSlackDown}) = true
 convert_result_to_natural_units(::Type{ReserveRequirementSlack}) = true
 convert_result_to_natural_units(::Type{FlowActivePowerVariable}) = true
 convert_result_to_natural_units(::Type{FlowActivePowerFromToVariable}) = true
