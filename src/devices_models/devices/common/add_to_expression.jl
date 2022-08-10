@@ -399,6 +399,34 @@ function add_to_expression!(
     return
 end
 
+
+function add_to_expression!(
+    container::OptimizationContainer,
+    ::Type{T},
+    ::Type{U},
+    devices::IS.FlattenIteratorWrapper{V},
+    ::DeviceModel{V, W},
+    ::Type{X},
+) where {
+    T <: ActivePowerBalance,
+    U <: UpperBoundTimeSeriesParameter,
+    V <: PSY.ThermalGen,
+    W <: AbstractDeviceFormulation,
+    X <: Union{PTDFPowerModel, StandardPTDFModel},
+}
+    parameter = get_parameter_array(container, U(), V)
+    sys_expr = get_expression(container, T(), PSY.System)
+    nodal_expr = get_expression(container, T(), PSY.Bus)
+    for d in devices, t in get_time_steps(container)
+        name = PSY.get_name(d)
+        bus_no = PSY.get_number(PSY.get_bus(d))
+        mult = get_expression_multiplier(U(), T(), d, W())
+        _add_to_jump_expression!(sys_expr[t], parameter[name, t], mult)
+        _add_to_jump_expression!(nodal_expr[bus_no, t], parameter[name, t], mult)
+    end
+    return
+end
+
 """
 Default implementation to add variables to SystemBalanceExpressions
 """
@@ -687,6 +715,32 @@ function add_to_expression!(
 ) where {
     T <: Union{ActivePowerRangeExpressionUB, ActivePowerRangeExpressionLB},
     U <: OnStatusParameter,
+    V <: PSY.ThermalGen,
+    W <: AbstractThermalDispatchFormulation,
+}
+    parameter_array = get_parameter_array(container, U(), V)
+    if !has_container_key(container, T, V)
+        add_expressions!(container, T, devices, model)
+    end
+    expression = get_expression(container, T(), V)
+    for d in devices, mult in get_expression_multiplier(U(), T(), d, W())
+        for t in get_time_steps(container)
+            name = PSY.get_name(d)
+            _add_to_jump_expression!(expression[name, t], parameter_array[name, t], -mult)
+        end
+    end
+    return
+end
+
+function add_to_expression!(
+    container::OptimizationContainer,
+    ::Type{T},
+    ::U,
+    devices::IS.FlattenIteratorWrapper{V},
+    model::DeviceModel{V, W},
+) where {
+    T <: Union{ActivePowerRangeExpressionUB, ActivePowerRangeExpressionLB},
+    U <: UpperBoundTimeSeriesParameter,
     V <: PSY.ThermalGen,
     W <: AbstractThermalDispatchFormulation,
 }

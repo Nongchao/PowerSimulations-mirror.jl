@@ -1680,10 +1680,7 @@ function construct_device!(
     add_variables!(container, PowerOutput, devices, ThermalCompactDispatch())
 
     add_parameters!(container, OnStatusParameter(), devices, model)
-    if get_attribute(model, "commitment_timeseries")
-        add_parameters!(container, UpperBoundTimeSeriesParameter(), devices, model)
-        add_parameters!(container, LowerBoundTimeSeriesParameter(), devices, model)
-    end
+
     add_feedforward_arguments!(container, model, devices)
 
     add_to_expression!(
@@ -1695,7 +1692,14 @@ function construct_device!(
         S,
     )
 
-    add_to_expression!(container, ActivePowerBalance, OnStatusParameter, devices, model, S)
+    if get_attribute(model, "commitment_timeseries")
+        add_parameters!(container, UpperBoundTimeSeriesParameter(), devices, model)
+        add_parameters!(container, LowerBoundTimeSeriesParameter(), devices, model)
+        add_to_expression!(container, ActivePowerBalance, UpperBoundTimeSeriesParameter, devices, model, S)
+    else
+        add_to_expression!(container, ActivePowerBalance, OnStatusParameter, devices, model, S)
+    end
+
 
     initial_conditions!(container, devices, ThermalCompactDispatch())
 

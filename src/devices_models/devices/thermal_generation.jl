@@ -59,6 +59,15 @@ get_expression_multiplier(::OnStatusParameter, ::ActivePowerRangeExpressionUB, d
 get_expression_multiplier(::OnStatusParameter, ::ActivePowerRangeExpressionLB, d::PSY.ThermalGen, ::ThermalCompactDispatch) = 0.0
 get_expression_multiplier(::OnStatusParameter, ::ActivePowerBalance, d::PSY.ThermalGen, ::AbstractThermalFormulation) = PSY.get_active_power_limits(d).min
 
+get_expression_multiplier(::UpperBoundTimeSeriesParameter, ::ActivePowerRangeExpressionUB, d::PSY.ThermalGen, ::AbstractThermalFormulation) = PSY.get_active_power_limits(d).max
+get_expression_multiplier(::UpperBoundTimeSeriesParameter, ::ActivePowerRangeExpressionLB, d::PSY.ThermalGen, ::AbstractThermalFormulation) = PSY.get_active_power_limits(d).min
+get_expression_multiplier(::UpperBoundTimeSeriesParameter, ::ActivePowerRangeExpressionUB, d::PSY.ThermalGen, ::AbstractCompactUnitCommitment) = PSY.get_active_power_limits(d).max - PSY.get_active_power_limits(d).min
+get_expression_multiplier(::UpperBoundTimeSeriesParameter, ::ActivePowerRangeExpressionLB, d::PSY.ThermalGen, ::AbstractCompactUnitCommitment) = 0.0
+get_expression_multiplier(::UpperBoundTimeSeriesParameter, ::ActivePowerRangeExpressionUB, d::PSY.ThermalGen, ::ThermalCompactDispatch) = PSY.get_active_power_limits(d).max - PSY.get_active_power_limits(d).min
+get_expression_multiplier(::UpperBoundTimeSeriesParameter, ::ActivePowerRangeExpressionLB, d::PSY.ThermalGen, ::ThermalCompactDispatch) = 0.0
+get_expression_multiplier(::UpperBoundTimeSeriesParameter, ::ActivePowerBalance, d::PSY.ThermalGen, ::AbstractThermalFormulation) = PSY.get_active_power_limits(d).min
+
+
 #################### Initial Conditions for models ###############
 initial_condition_default(::DeviceStatus, d::PSY.ThermalGen, ::AbstractThermalFormulation) = PSY.get_status(d)
 initial_condition_variable(::DeviceStatus, d::PSY.ThermalGen, ::AbstractThermalFormulation) = OnVariable()
@@ -82,6 +91,8 @@ proportional_cost(cost::PSY.MultiStartCost, ::OnVariable, ::PSY.ThermalMultiStar
 
 get_multiplier_value(::UpperBoundTimeSeriesParameter, d::PSY.ThermalGen, ::AbstractThermalFormulation) = PSY.get_active_power_limits(d).max
 get_multiplier_value(::LowerBoundTimeSeriesParameter, d::PSY.ThermalGen, ::AbstractThermalFormulation) = PSY.get_active_power_limits(d).min
+get_multiplier_value(::UpperBoundTimeSeriesParameter, d::PSY.ThermalGen, ::ThermalCompactDispatch) = PSY.get_active_power_limits(d).max - PSY.get_active_power_limits(d).min
+get_multiplier_value(::LowerBoundTimeSeriesParameter, d::PSY.ThermalGen, ::ThermalCompactDispatch) = 0.0
 get_multiplier_value(::ActivePowerTimeSeriesParameter, d::PSY.ThermalGen, ::FixedOutput) = PSY.get_active_power_limits(d).max
 
 
@@ -341,6 +352,51 @@ function add_constraints!(
     end
     return
 end
+
+function add_constraints!(
+    container::OptimizationContainer,
+    T::Type{ActivePowerVariableTimeSeriesLimitsConstraint},
+    U::Type{<:Union{PowerAboveMinimumVariable, <:RangeConstraintLBExpressions}},
+    devices::IS.FlattenIteratorWrapper{V},
+    model::DeviceModel{V, W},
+    X::Type{<:PM.AbstractPowerModel},
+) where {V <: PSY.ThermalGen, W <: ThermalCompactDispatch}
+    if get_attribute(model, "commitment_timeseries")
+        add_parameterized_lower_bound_range_constraints(
+            container,
+            T,
+            U,
+            LowerBoundTimeSeriesParameter,
+            devices,
+            model,
+            X,
+        )
+    end
+    return
+end
+
+function add_constraints!(
+    container::OptimizationContainer,
+    T::Type{ActivePowerVariableTimeSeriesLimitsConstraint},
+    U::Type{<:Union{PowerAboveMinimumVariable, <:RangeConstraintUBExpressions}},
+    devices::IS.FlattenIteratorWrapper{V},
+    model::DeviceModel{V, W},
+    X::Type{<:PM.AbstractPowerModel},
+) where {V <: PSY.ThermalGen, W <: ThermalCompactDispatch}
+    if get_attribute(model, "commitment_timeseries")
+        add_parameterized_upper_bound_range_constraints(
+            container,
+            T,
+            U,
+            UpperBoundTimeSeriesParameter,
+            devices,
+            model,
+            X,
+        )
+    end
+    return
+end
+
 
 """
 Min and max active power limits for multi-start unit commitment formulations
