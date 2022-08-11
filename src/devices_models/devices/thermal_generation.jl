@@ -356,7 +356,7 @@ end
 function add_constraints!(
     container::OptimizationContainer,
     T::Type{ActivePowerVariableTimeSeriesLimitsConstraint},
-    U::Type{<:Union{PowerAboveMinimumVariable, <:RangeConstraintLBExpressions}},
+    U::Type{<:RangeConstraintLBExpressions},
     devices::IS.FlattenIteratorWrapper{V},
     model::DeviceModel{V, W},
     X::Type{<:PM.AbstractPowerModel},
@@ -378,7 +378,7 @@ end
 function add_constraints!(
     container::OptimizationContainer,
     T::Type{ActivePowerVariableTimeSeriesLimitsConstraint},
-    U::Type{<:Union{PowerAboveMinimumVariable, <:RangeConstraintUBExpressions}},
+    U::Type{<:RangeConstraintUBExpressions},
     devices::IS.FlattenIteratorWrapper{V},
     model::DeviceModel{V, W},
     X::Type{<:PM.AbstractPowerModel},
