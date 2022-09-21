@@ -175,10 +175,11 @@ function construct_device!(
     network_model::NetworkModel{S},
 ) where {B <: PSY.ACBranch, S <: StandardPTDFModel}
     devices = get_available_components(B, sys)
+    if !get_attribute(model, "lazy_constraint")
+        add_constraints!(container, NetworkFlowConstraint, devices, model, network_model)
+        branch_rate_bounds!(container, devices, model, S)
+    end
 
-    add_constraints!(container, NetworkFlowConstraint, devices, model, network_model)
-
-    branch_rate_bounds!(container, devices, model, S)
     add_constraint_dual!(container, sys, model)
     return
 end
@@ -203,8 +204,9 @@ function construct_device!(
     network_model::NetworkModel{S},
 ) where {B <: PSY.ACBranch, S <: StandardPTDFModel}
     devices = get_available_components(B, sys)
-
-    add_constraints!(container, NetworkFlowConstraint, devices, model, network_model)
+    if !get_attribute(model, "lazy_constraint")
+        add_constraints!(container, NetworkFlowConstraint, devices, model, network_model)
+    end
     add_constraint_dual!(container, sys, model)
     return
 end

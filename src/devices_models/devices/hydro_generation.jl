@@ -705,13 +705,32 @@ function calculate_aux_variable_value!(
     return
 end
 
+function calculate_aux_variable_value!(
+    container::OptimizationContainer,
+    ::AuxVarKey{EnergyOutput, T},
+    system::PSY.System,
+) where {T <: PSY.HydroPumpedStorage}
+    devices = get_available_components(T, system)
+    time_steps = get_time_steps(container)
+
+    p_variable_results = get_variable(container, ActivePowerOutVariable(), T)
+    aux_variable_container = get_aux_variable(container, EnergyOutput(), T)
+    for d in devices, t in time_steps
+        name = PSY.get_name(d)
+        min = PSY.get_active_power_limits(d).min
+        aux_variable_container[name, t] = jump_value(p_variable_results[name, t])
+    end
+
+    return
+end
+
 ########################## Make initial Conditions for a Model #############################
 function initial_conditions!(
     container::OptimizationContainer,
     devices::IS.FlattenIteratorWrapper{D},
     formulation::S,
 ) where {D <: PSY.HydroEnergyReservoir, S <: Union{HydroDispatchReservoirStorage, HydroCommitmentReservoirStorage}}
-    settings = PSI.get_settings(model)
+    settings = PSI.get_settings(container)
     if haskey(settings.ext, "rebuild_sim") && settings.ext["rebuild_sim"]
         nothing
     else
@@ -730,7 +749,7 @@ function initial_conditions!(
     devices::IS.FlattenIteratorWrapper{D},
     formulation::HydroDispatchPumpedStorage,
 ) where {D <: PSY.HydroPumpedStorage}
-    settings = PSI.get_settings(model)
+    settings = PSI.get_settings(container)
     if haskey(settings.ext, "rebuild_sim") && settings.ext["rebuild_sim"]
         nothing
     else

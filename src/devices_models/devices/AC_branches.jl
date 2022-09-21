@@ -69,7 +69,7 @@ function get_default_attributes(
     ::Type{U},
     ::Type{V},
 ) where {U <: PSY.ACBranch, V <: AbstractBranchFormulation}
-    return Dict{String, Any}()
+    return Dict{String, Any}("lazy_constraint" => false)
 end
 #################################### Flow Variable Bounds ##################################################
 

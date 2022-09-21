@@ -941,6 +941,8 @@ function calculate_aux_variable_value!(
     time_steps = get_time_steps(container)
     if has_container_key(container, OnVariable, T)
         on_variable_results = get_variable(container, OnVariable(), T)
+    elseif has_container_key(container, UpperBoundTimeSeriesParameter, T)
+        on_variable_results = get_parameter_array(container, UpperBoundTimeSeriesParameter(), T)
     elseif has_container_key(container, OnStatusParameter, T)
         on_variable_results = get_parameter_array(container, OnStatusParameter(), T)
     else
