@@ -35,15 +35,27 @@ add_variables!(
     formulation::AbstractBranchFormulation,
 ) = add_variable!(container, FlowActivePowerVariable(), devices, formulation)
 
+function add_variables!(
+    container::OptimizationContainer,
+    ::Type{T},
+    devices::IS.FlattenIteratorWrapper{B},
+    formulation::AbstractBranchFormulation,
+) where {B <:PSY.ACBranch, T<: Union{NetworkFlowSlackUp, NetworkFlowSlackDown}} 
+    branches = PSY.get_name.(devices)
+    time_steps = get_time_steps(container)
+    add_variable_container!(container, T(), B, branches, time_steps; sparse=true)
+    return 
+end
+
 get_variable_binary(
     ::FlowActivePowerVariable,
     ::Type{<:PSY.ACBranch},
     ::AbstractBranchFormulation,
 ) = false
 
-get_variable_upper_bound(::NetworkFlowSlackUp, d::PSY.ACBranch, ::AbstractBranchFormulation) = PSY.get_rate(d)*2
+# get_variable_upper_bound(::NetworkFlowSlackUp, d::PSY.ACBranch, ::AbstractBranchFormulation) = PSY.get_rate(d)*2
 get_variable_lower_bound(::NetworkFlowSlackUp, d::PSY.ACBranch, ::AbstractBranchFormulation) = 0.0
-get_variable_upper_bound(::NetworkFlowSlackDown, d::PSY.ACBranch, ::AbstractBranchFormulation) = PSY.get_rate(d)*2
+# get_variable_upper_bound(::NetworkFlowSlackDown, d::PSY.ACBranch, ::AbstractBranchFormulation) = PSY.get_rate(d)*2
 get_variable_lower_bound(::NetworkFlowSlackDown, d::PSY.ACBranch, ::AbstractBranchFormulation) = 0.0
 get_variable_binary(
     ::NetworkFlowSlackUp,

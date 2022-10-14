@@ -507,8 +507,8 @@ function add_constraints!(
             energy_var[name, 1] ==
             get_value(ic) +
             (
-                powerin_var[name, 1] * efficiency - spillage_var[name, 1] -
-                powerout_var[name, 1]
+                powerin_var[name, 1]  - (spillage_var[name, 1] +
+                powerout_var[name, 1])/efficiency
             ) * fraction_of_hour +
             param[name, 1] * multiplier[name, 1]
         )
@@ -519,13 +519,14 @@ function add_constraints!(
                 energy_var[name, t] ==
                 energy_var[name, t - 1] +
                 param[name, t] * multiplier[name, t] +
-                (powerin_var[name, 1] - powerout_var[name, t] - spillage_var[name, t]) *
+                (powerin_var[name, 1] - (powerout_var[name, t] + spillage_var[name, t])/efficiency) *
                 fraction_of_hour
             )
         end
     end
     return
 end
+
 
 """
 Add energy capacity down constraints for hydro pumped storage

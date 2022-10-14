@@ -1567,6 +1567,7 @@ function lazy_container_addition!(
     ::Type{U},
     axs...,
 ) where {T <: VariableType, U <: Union{PSY.Component, PSY.System}}
+
     if !has_container_key(container, T, U)
         var_container = add_variable_container!(container, var, U, axs...)
     else
