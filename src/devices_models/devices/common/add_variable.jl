@@ -26,6 +26,19 @@ function add_variables!(
 end
 
 """
+Add variables to the OptimizationContainer for a service requirements.
+"""
+function add_variables!(
+    container::OptimizationContainer,
+    ::Type{T},
+    service::U,
+    formulation::AbstractReservesFormulation,
+) where {T <: VariableType, U <: PSY.AbstractReserve, V <: PSY.Component}
+    add_service_variable!(container, T(), service, [service], formulation)
+    return
+end
+
+"""
 Add variables to the OptimizationContainer for a Sub-Component of a hybrid systems.
 """
 function add_variables!(

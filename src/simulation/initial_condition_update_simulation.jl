@@ -81,6 +81,8 @@ function update_initial_conditions!(
                 set_ic_quantity!(ic, min)
             elseif isapprox(var_val - max, 0.0, atol=ABSOLUTE_TOLERANCE)
                 set_ic_quantity!(ic, max)
+            elseif isapprox(var_val, 0.0, atol=ABSOLUTE_TOLERANCE)
+                set_ic_quantity!(ic, 0.0)
             else
                 error("Variable value $(var_val) for ActivePowerVariable \\
                       Status value $(status_val) for OnVariable \\
